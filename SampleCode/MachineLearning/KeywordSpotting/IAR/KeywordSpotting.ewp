@@ -272,7 +272,7 @@
                 </option>
                 <option>
                     <name>CCDiagSuppress</name>
-                    <state>Pe550, Pe997, Pe111</state>
+                    <state>Pe550, Pe997, Pe111, Pa082</state>
                 </option>
                 <option>
                     <name>CCDiagRemark</name>
@@ -375,6 +375,7 @@
                     <state>$PROJ_DIR$\..\NPU\include</state>
                     <state>$PROJ_DIR$\..\Pattern\include</state>
                     <state>$PROJ_DIR$\..\ProfilerCounter\include</state>
+                    <state>$PROJ_DIR$\..\UAC</state>
                     <state>$PROJ_DIR$\..</state>
                     <state>$PROJ_DIR$\..\..\..\..\ThirdParty\tflite_micro\_deps\tensorflow-gemlowp-src</state>
                 </option>
@@ -1444,6 +1445,9 @@
             <name>$PROJ_DIR$\..\..\..\..\Library\StdDriver\src\gpio.c</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\..\..\..\..\Library\StdDriver\src\hsusbd.c</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\..\..\..\Library\StdDriver\src\lppdma.c</name>
         </file>
         <file>
@@ -1520,6 +1524,15 @@
         <name>ProfilerCounter</name>
         <file>
             <name>$PROJ_DIR$\..\ProfilerCounter\pmu_counter.c</name>
+        </file>
+    </group>
+    <group>
+        <name>UAC</name>
+        <file>
+            <name>$PROJ_DIR$\..\UAC\descriptors.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\UAC\usbd_audio.c</name>
         </file>
     </group>
 </project>

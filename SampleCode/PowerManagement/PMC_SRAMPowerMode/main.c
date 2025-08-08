@@ -17,6 +17,8 @@ void WDT0_IRQHandler(void);
 void PowerDownFunction(void);
 void SYS_Init(void);
 
+#define SRAM1_BASE_ADDRESS          0x20180000
+
 /*---------------------------------------------------------------------------------------------------------*/
 /*  WDT IRQ Handler                                                                                        */
 /*---------------------------------------------------------------------------------------------------------*/
@@ -174,7 +176,7 @@ int32_t main(void)
     printf("Calculate SRAM checksum before Power-down:\n\n");
 
     /* Specify SRAM region start address */
-    u32SRAMStartAddr = 0x20180000;
+    u32SRAMStartAddr = SRAM1_BASE_ADDRESS;
 
     /* Calculate SRAM checksum */
     for (u32Idx = 0; u32Idx < 13; u32Idx++)
@@ -263,7 +265,7 @@ int32_t main(void)
     printf("Calculate SRAM CheckSum after wake-up:\n\n");
 
     /* Specify SRAM region start address */
-    u32SRAMStartAddr = 0x20180000;
+    u32SRAMStartAddr = SRAM1_BASE_ADDRESS;
 
     /* Calculate SRAM checksum */
     for (u32Idx = 0; u32Idx < 13; u32Idx++)

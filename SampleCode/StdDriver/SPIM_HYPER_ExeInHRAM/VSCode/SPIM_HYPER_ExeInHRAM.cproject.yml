@@ -1,9 +1,10 @@
 project:
   packs:
-    - pack: Nuvoton::NuMicro_DFP
+    - pack: Nuvoton::NuMicroM55_DFP
   setups:
     - output:
         type: bin
+      for-compiler: AC6
     - setup: Options for SPIMHYPERExeInHRAM
       processor:
         fpu: dp
@@ -14,6 +15,10 @@ project:
         - ../../../../Library/CMSIS/Core/Include
         - ../../../../Library/Device/Nuvoton/M55M1/Include
         - ../../../../Library/StdDriver/inc
+        - .
+      define:
+        - __WINS__
+        - OPT_SPEED
       misc:
         - for-compiler: AC6
           C:
@@ -39,9 +44,9 @@ project:
             - -mthumb -fmessage-length=0 -fsigned-char --specs=nano.specs --specs=nosys.specs
             - -Wl,--gc-sections,-Map="$elf()$.map"
   linker:
-    - script: ./M55M1.scatter
+    - script: ./M55M1_HRAM.scatter
       for-compiler: AC6
-    - script: ../../../../Library/Device/Nuvoton/M55M1/Source/GCC/M55M1.ld
+    - script: ./M55M1_HRAM.ld
       for-compiler: GCC
   groups:
     - group: CMSIS
@@ -61,3 +66,18 @@ project:
         - file: ../main.c
         - file: ../hyperram_code.c
         - file: ../spim_code.c
+  executes:
+    - execute: GenSPIMCodeImage
+      run : arm-none-eabi-objcopy -O binary --only-section=.spim_code $input$ $output$
+      input:
+        - $elf(.Release+GNUC)$
+      output:
+        - $OutDir(.Release+GNUC)$/$Project$.bin/SPIM.bin
+      for-context: .Release+GNUC
+    - execute: GenAPROMImage
+      run : arm-none-eabi-objcopy -O binary --remove-section=.spim_code $input$ $output$
+      input:
+        - $elf(.Release+GNUC)$
+      output:
+        - $OutDir(.Release+GNUC)$/$Project$.bin/ER_ROM
+      for-context: .Release+GNUC

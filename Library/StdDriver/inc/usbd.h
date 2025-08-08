@@ -522,7 +522,7 @@ extern const S_USBD_INFO_T gsInfo;
 /**
   * @brief      Get USB payload size (OUT data)
   *
-  * @param[in]  ep The USB endpoint ID. M55M1 Series supports 8 endpoint ID. This parameter could be 0 ~ 24.
+  * @param[in]  ep The USB endpoint ID. M55M1 Series supports 25 hardware endpoint ID. This parameter could be 0 ~ 24.
   *
   * @return     The value of USB_MXPLDx register.
   *

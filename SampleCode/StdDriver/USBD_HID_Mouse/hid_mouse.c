@@ -322,11 +322,10 @@ void HID_ClassRequest(void)
 
 void HID_UpdateMouseData(void)
 {
-    uint8_t *pu8Buf;
+    uint8_t u8Buf[4] = {0};
 
     //if(s_u8EP2Ready)
     {
-        pu8Buf = (uint8_t *)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP2));
         s_u8MouseMode ^= 1;
 
         if (s_u8MouseMode)
@@ -334,16 +333,21 @@ void HID_UpdateMouseData(void)
             if (s_u8MoveLen > 6)
             {
                 /* Update new report data */
-                pu8Buf[0] = 0x00;
-                pu8Buf[1] = (uint8_t)s_ai8MouseTable[s_u8MouseIdx & 0x07];
-                pu8Buf[2] = (uint8_t)s_ai8MouseTable[(s_u8MouseIdx + 2) & 0x07];
-                pu8Buf[3] = 0x00;
+                u8Buf[0] = 0x00;
+                u8Buf[1] = (uint8_t)s_ai8MouseTable[s_u8MouseIdx & 0x07];
+                u8Buf[2] = (uint8_t)s_ai8MouseTable[(s_u8MouseIdx + 2) & 0x07];
+                u8Buf[3] = 0x00;
                 s_u8MouseIdx++;
                 s_u8MoveLen = 0;
+            }
+            else
+            {
+                u8Buf[0] = u8Buf[1] = u8Buf[2] = u8Buf[3] = 0;
             }
 
             s_u8EP2Ready = 0;
             /* Set transfer length and trigger IN transfer */
+            USBD_MemCopy((uint8_t *)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP2)), u8Buf, 4);
             USBD_SET_PAYLOAD_LEN(EP2, 4);
         }
 

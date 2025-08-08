@@ -11,6 +11,7 @@
 
 #include "NuMicro.h"
 #include "DMICRecord.h"
+#include "usbd_audio.h"
 
 #define DMIC_LPPDMA_CH       (2)
 #define LPPDMA_BUF_ALIGH     (32)
@@ -40,20 +41,68 @@ static int16_t *s_pi16PDMAPingPoneBuf[2];
 static uint32_t s_u32PDMAPingPoneBuf_Aligned[2];
 static S_BUF_CTRL s_sAudioBufCtrl;
 
+/* DMA scatter-gather descriptor */
+#if (NVT_DCACHE_ON == 1)
+    /* Descriptors are placed in a non-cacheable region */
+    NVT_NONCACHEABLE __attribute__((aligned(4))) static LPDSCT_T sLPPDMA_DMIC[PDMA_RXBUFFER_CNT];
+
+#else
+    static LPDSCT_T sLPPDMA_DMIC[2];
+#endif
+
+/* Player Buffer and its pointer */
+#if (NVT_DCACHE_ON == 1)
+NVT_NONCACHEABLE __attribute__((aligned(4))) uint8_t PcmRecBuff[PDMA_RXBUFFER_CNT][BUFF_LEN];
+#else
+uint8_t PcmRecBuff[PDMA_RXBUFFER_CNT][BUFF_LEN] __attribute__((aligned(4))) = {0};
+#endif
+uint8_t u8PcmRxBufFull[PDMA_RXBUFFER_CNT] = {0};
+
+volatile uint32_t u32BufRecIdx = 0;
+
+
+void LPPDMA_init()
+{
+    uint32_t i;
+
+    for (i = 0; i < PDMA_RXBUFFER_CNT; i++)
+    {
+        sLPPDMA_DMIC[i].CTL = (((u32RxBuffLen / 2) - 1) << PDMA_DSCT_CTL_TXCNT_Pos) | PDMA_WIDTH_16 | PDMA_SAR_FIX | PDMA_DAR_INC | PDMA_REQ_SINGLE | PDMA_OP_SCATTER;
+        sLPPDMA_DMIC[i].SA = (uint32_t)(&DMIC0->FIFO);
+        sLPPDMA_DMIC[i].DA = (uint32_t) & PcmRecBuff[i];
+
+        if (i != (PDMA_RXBUFFER_CNT - 1))
+            sLPPDMA_DMIC[i].NEXT = (uint32_t)&sLPPDMA_DMIC[i + 1];
+        else
+            sLPPDMA_DMIC[i].NEXT = (uint32_t)&sLPPDMA_DMIC[0];
+
+    }
+
+    // Open LPPDMA channel
+    LPPDMA_Open(LPPDMA, (1 << DMIC_LPPDMA_CH));
+    // Set TransMode
+    LPPDMA_SetTransferMode(LPPDMA, DMIC_LPPDMA_CH, LPPDMA_DMIC0_RX, TRUE, (uint32_t)&sLPPDMA_DMIC[0]);
+    // Enable interrupt
+    LPPDMA_EnableInt(LPPDMA, DMIC_LPPDMA_CH, LPPDMA_INT_TRANS_DONE);
+
+    NVIC_EnableIRQ(LPPDMA_IRQn);
+    NVIC_SetPriority(LPPDMA_IRQn, 1);
+
+}
+
 // Push audio data to ring buffer
-static int AudioInBuf_Push(S_BUF_CTRL *psBufCtrl, int16_t *pi16Data)
+static int AudioInBuf_Push(S_BUF_CTRL *psBufCtrl, int16_t *pi16Data, int32_t i32PushSamples)
 {
     int32_t i32NextWriteIndex;
     int32_t i32ReadIndex = psBufCtrl->i32ReadSampleIndex;
     int32_t i32WriteIndex = psBufCtrl->i32WriteSampleIndex;
     int32_t i32TotalSamples = psBufCtrl->i32TotalSamples;
-    int32_t i32PDMASamples = psBufCtrl->u32PDMABlockSamples;
     uint32_t u32Channels = psBufCtrl->u32Channels;
     int16_t *pi16AudioInBuf = psBufCtrl->pi16AudioInBuf;
     int32_t i32FreeSampleSpace;
 
     //buffer full, reserved a PDMA block samples to avoid overflow
-    if (((i32WriteIndex + i32PDMASamples) % i32TotalSamples) == i32ReadIndex)
+    if (((i32WriteIndex + i32PushSamples) % i32TotalSamples) == i32ReadIndex)
         return -1;
 
     if (i32WriteIndex >= i32ReadIndex)
@@ -65,12 +114,12 @@ static int AudioInBuf_Push(S_BUF_CTRL *psBufCtrl, int16_t *pi16Data)
         i32FreeSampleSpace = i32ReadIndex - i32WriteIndex;
     }
 
-    if (i32FreeSampleSpace < i32PDMASamples)
+    if (i32FreeSampleSpace < i32PushSamples)
         return -2;
 
-    i32NextWriteIndex = i32WriteIndex + i32PDMASamples;
+    i32NextWriteIndex = i32WriteIndex + i32PushSamples;
 
-    SCB_InvalidateDCache_by_Addr(pi16Data, i32PDMASamples * u32Channels * sizeof(int16_t));
+    SCB_InvalidateDCache_by_Addr(pi16Data, i32PushSamples * u32Channels * sizeof(int16_t));
 
     if (i32NextWriteIndex >= i32TotalSamples)
     {
@@ -87,7 +136,7 @@ static int AudioInBuf_Push(S_BUF_CTRL *psBufCtrl, int16_t *pi16Data)
     }
     else
     {
-        memcpy(&pi16AudioInBuf[i32WriteIndex * u32Channels], pi16Data, i32PDMASamples * u32Channels * sizeof(int16_t));
+        memcpy(&pi16AudioInBuf[i32WriteIndex * u32Channels], pi16Data, i32PushSamples * u32Channels * sizeof(int16_t));
     }
 
     psBufCtrl->i32WriteSampleIndex = i32NextWriteIndex;
@@ -212,7 +261,7 @@ static int AudioInBuf_AvailSamples(S_BUF_CTRL *psBufCtrl)
     static int s_IRQIn_index = 1;
 #endif
 
-void LPPDMA_IRQHandler(void)
+NVT_ITCM void LPPDMA_IRQHandler(void)
 {
     uint32_t u32TDStatus = LPPDMA_GET_TD_STS(LPPDMA);
 
@@ -220,34 +269,73 @@ void LPPDMA_IRQHandler(void)
     {
         LPPDMA_CLR_TD_FLAG(LPPDMA, (1 << DMIC_LPPDMA_CH));
 
-        if (LPPDMA->CURSCAT[DMIC_LPPDMA_CH] == (uint32_t)&s_sLPPDMA_DMIC_SCT[0])
+        /* Set PCM buffer full flag */
+        u8PcmRxBufFull[u8PDMARxIdx] = 1;
+        u8RxDataCntInBuffer++;
+
+        /* Change to next buffer */
+        u8PDMARxIdx ++;
+
+        if (u8PDMARxIdx >= PDMA_RXBUFFER_CNT)
+            u8PDMARxIdx = 0;
+
+        UAC_SendRecData();
+    }
+}
+
+/**
+  * @brief  SendRecData, prepare the record data for next ISO transfer.
+  * @param  None.
+  * @retval None.
+  */
+void UAC_SendRecData(void)
+{
+    uint32_t volatile i;
+    uint32_t *pBuff;
+
+    /* when record buffer full, send data to host */
+    if (u8PcmRxBufFull[u32BufRecIdx])
+    {
+        /* Set empty flag */
+        u8PcmRxBufFull[u32BufRecIdx] = 0;
+
+        pBuff = (uint32_t *)&PcmRecBuff[u32BufRecIdx][0];
+
+        /* active usbd DMA to read data to FIFO and then send to host */
+        HSUSBD_SET_DMA_READ(ISO_IN_EP_NUM);
+        HSUSBD_ENABLE_BUS_INT(HSUSBD_BUSINTEN_DMADONEIEN_Msk | HSUSBD_BUSINTEN_RSTIEN_Msk | HSUSBD_BUSINTEN_VBUSDETIEN_Msk);
+        HSUSBD_SET_DMA_ADDR((uint32_t)pBuff);
+        HSUSBD_SET_DMA_LEN(u32RxBuffLen);
+        g_hsusbd_DmaDone = 0;
+        HSUSBD_ENABLE_DMA();
+
+        /* Change to next PCM buffer */
+        u32BufRecIdx ++;
+
+        if (u32BufRecIdx >= PDMA_RXBUFFER_CNT)
+            u32BufRecIdx = 0;
+
+        if (u8RxDataCntInBuffer > 0)
+            u8RxDataCntInBuffer --;
+
+        AudioInBuf_Push(&s_sAudioBufCtrl, (int16_t *)pBuff, u32RxBuffLen / 2);
+
+        /* wait usbd dma complete */
+        while (1)
         {
-            AudioInBuf_Push(&s_sAudioBufCtrl, (int16_t *)s_u32PDMAPingPoneBuf_Aligned[0]);
+            if (g_hsusbd_DmaDone)
+                break;
 
-#if defined(LPPDMA_PINGPONG_CHECK)
-
-            if (s_IRQIn_index != 1)
-            {
-                printf("Warning: Maybe loss some audio data \n");
-            }
-
-            s_IRQIn_index = 0;
-#endif
+            if (!HSUSBD_IS_ATTACHED())
+                break;
         }
-        else
-        {
-            AudioInBuf_Push(&s_sAudioBufCtrl, (int16_t *)s_u32PDMAPingPoneBuf_Aligned[1]);
 
-#if defined(LPPDMA_PINGPONG_CHECK)
-
-            if (s_IRQIn_index != 0)
-            {
-                printf("Warning: Maybe loss some audio data \n");
-            }
-
-            s_IRQIn_index = 1;
-#endif
-        }
+        g_usbd_txflag = 0;
+    }
+    else     /* send zero packet when no data*/
+    {
+        u8RxDataCntInBuffer = 0;
+        HSUSBD->EP[EPA].EPRSPCTL = HSUSBD_EPRSPCTL_ZEROLEN_Msk;
     }
 }
 
@@ -307,23 +395,12 @@ int32_t DMICRecord_Init(
     // Setup MIC(RX) PDMA buffer description
     s_sLPPDMA_DMIC_SCT[0].CTL = (((u32BlockSamples * u32Channels) - 1) << PDMA_DSCT_CTL_TXCNT_Pos) | PDMA_WIDTH_16 | PDMA_SAR_FIX | PDMA_DAR_INC | PDMA_REQ_SINGLE | PDMA_OP_SCATTER;
     s_sLPPDMA_DMIC_SCT[0].SA = (uint32_t)(&DMIC0->FIFO);
-    s_sLPPDMA_DMIC_SCT[0].DA = (uint32_t) & (pi16LPPDMAPingPoneBuf0[0]);
+    s_sLPPDMA_DMIC_SCT[0].DA = u32LPPDMAPingPoneBuf0_Aligned;
     s_sLPPDMA_DMIC_SCT[0].NEXT = (uint32_t)&s_sLPPDMA_DMIC_SCT[1];
     s_sLPPDMA_DMIC_SCT[1].CTL = (((u32BlockSamples * u32Channels) - 1) << PDMA_DSCT_CTL_TXCNT_Pos) | PDMA_WIDTH_16 | PDMA_SAR_FIX | PDMA_DAR_INC | PDMA_REQ_SINGLE | PDMA_OP_SCATTER;
     s_sLPPDMA_DMIC_SCT[1].SA = (uint32_t)(&DMIC0->FIFO);
-    s_sLPPDMA_DMIC_SCT[1].DA = (uint32_t) & (pi16LPPDMAPingPoneBuf1[0]);
+    s_sLPPDMA_DMIC_SCT[1].DA = u32LPPDMAPingPoneBuf1_Aligned;
     s_sLPPDMA_DMIC_SCT[1].NEXT = (uint32_t)&s_sLPPDMA_DMIC_SCT[0];
-
-
-    // Open LPPDMA channel
-    LPPDMA_Open(LPPDMA, (1 << DMIC_LPPDMA_CH));
-    // Set TransMode
-    LPPDMA_SetTransferMode(LPPDMA, DMIC_LPPDMA_CH, LPPDMA_DMIC0_RX, TRUE, (uint32_t)&s_sLPPDMA_DMIC_SCT[0]);
-    // Enable interrupt
-    LPPDMA_EnableInt(LPPDMA, DMIC_LPPDMA_CH, LPPDMA_INT_TRANS_DONE);
-
-    /* Enable the LPPDMA IRQ */
-    NVIC_EnableIRQ(LPPDMA_IRQn);
 
     s_pi16PDMAPingPoneBuf[0] = pi16LPPDMAPingPoneBuf0;
     s_pi16PDMAPingPoneBuf[1] = pi16LPPDMAPingPoneBuf1;
@@ -336,6 +413,16 @@ int32_t DMICRecord_Init(
     s_sAudioBufCtrl.u32Channels = u32Channels;
     s_sAudioBufCtrl.pi16AudioInBuf = pi16AudioInBuf;
     s_sAudioBufCtrl.u32PDMABlockSamples = u32BlockSamples;
+
+    HSUSBD_Open(&gsHSInfo, UAC_ClassRequest, UAC_SetInterface);
+
+    /* Endpoint configuration */
+    UAC_Init();
+    LPPDMA_init();
+    NVIC_EnableIRQ(HSUSBD_IRQn);
+    HSUSBD_CLR_SE0();
+
+    UAC_DeviceEnable(0);
 
     return 0;
 

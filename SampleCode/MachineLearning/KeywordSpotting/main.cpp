@@ -27,6 +27,7 @@
 //#define __PROFILE__
 #define USE_DMIC
 #include "DMICRecord.h"
+#include "usbd_audio.h"
 
 #if defined(__PROFILE__)
     #include "Profiler.hpp"
@@ -178,12 +179,10 @@ int main()
             continue;
 
 #else
-    DMICRecord_StartRec();
 
     while (1)
     {
 #endif
-
 
         /* Declare a container to hold results from across the whole audio clip. */
         std::vector<arm::app::kws::KwsResult> finalResults;

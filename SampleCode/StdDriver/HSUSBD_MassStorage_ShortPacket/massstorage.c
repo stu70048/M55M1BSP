@@ -836,12 +836,12 @@ uint32_t MSC_ReceiveCBW(uint32_t u32Buf)
             break;
     }
 
-#if (NVT_DCACHE_ON == 1)
-    /* Host to device.Invalidate the cache to allow the CPU to access the latest data. */
-    SCB_InvalidateDCache_by_Addr((void *)(u32Buf), DCACHE_ALIGN_LINE_SIZE(32));
-#endif
     /* get data from FIFO */
     receive_len = HSUSBD->EP[EPB].EPDATCNT & 0xffff;
+#if (NVT_DCACHE_ON == 1)
+    /* Host to device.Invalidate the cache to allow the CPU to access the latest data. */
+    SCB_InvalidateDCache_by_Addr((void *)(u32Buf), DCACHE_ALIGN_LINE_SIZE(receive_len));
+#endif
 
     for (i = 0; i < receive_len; i++)
         *(ptr + i) = HSUSBD->EP[EPB].EPDAT_BYTE;

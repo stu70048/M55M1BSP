@@ -17,6 +17,9 @@
 /*Include header file to get required struct and simd function declaration*/
 #ifdef WITH_JPEGACC
     #include "../../Library/JpegAcceleratorLib/include/jacclib.h"
+    #include "../../Library/JpegAcceleratorLib/include/jpegaccelerator.h"
+int16_t g_i16divisors_recp0[DCTSIZE2*4];
+int16_t g_i16divisors_recp1[DCTSIZE2*4];
 #endif
 
 /*
@@ -79,29 +82,37 @@ jpeg_add_quant_table(j_compress_ptr cinfo, int which_tbl,
 #ifdef WITH_JPEGACC
     /*Allocate for recirpcal tbl space*/
     qrecptblptr = & cinfo->quant_recp_tbl_ptrs[which_tbl];
-
     if (*qrecptblptr == NULL)
         *qrecptblptr = jpeg_alloc_quant_recp_table((j_common_ptr) cinfo);
-
+    
     /*Compute the reciprocal of each value in quat tbl*/
     for (i = 0; i < DCTSIZE2; i++)
     {
         u16temp = (*qtblptr)->quantval[i];
         res =  compute_reciprocal(u16temp, (DCTELEM *)(&((*qrecptblptr)->quantval[i])));
     }
+		
+		/*Format convesion with minor modification. Improve load data time*/
+		for (i = 0; i < DCTSIZE2*4; i++)
+    {
+		    if(which_tbl==0)
+					g_i16divisors_recp0[i] = (int16_t)((*qrecptblptr)->quantval[i]);
+				else
+					g_i16divisors_recp1[i] = (int16_t)((*qrecptblptr)->quantval[i]);
+		}
 
     (*qrecptblptr)->sent_table = FALSE;
 
 #ifdef DBG_NVT_JPEG
-
-    for (i = 0; i < DCTSIZE2; i++)
+    printf("Current which_tbl: %d \r\n", which_tbl);		/*Check which_tbl*/
+    for (i = 0; i < 2; i++)
     {
-        printf("recp_quantval[%d] = 0x08%x\r\n", DCTSIZE2 * 0 + i, (*qrecptblptr)->quantval[DCTSIZE2 * 0 + i]);
-        printf("recp_quantval[%d] = %d\r\n", DCTSIZE2 * 1 + i, (*qrecptblptr)->quantval[DCTSIZE2 * 1 + i]);
-        printf("recp_quantval[%d] = %d\r\n", DCTSIZE2 * 2 + i, (*qrecptblptr)->quantval[DCTSIZE2 * 2 + i]);
-        printf("recp_quantval[%d] = %d\r\n", DCTSIZE2 * 3 + i, (*qrecptblptr)->quantval[DCTSIZE2 * 3 + i]);
+        printf("recp_quantval[%d][%d] = 0x08%x\r\n", which_tbl, DCTSIZE2 * 0 + i, (*qrecptblptr)->quantval[DCTSIZE2 * 0 + i]);
+        printf("recp_quantval[%d][%d] = %d\r\n", which_tbl, DCTSIZE2 * 1 + i, (*qrecptblptr)->quantval[DCTSIZE2 * 1 + i]);
+        printf("recp_quantval[%d][%d] = %d\r\n", which_tbl, DCTSIZE2 * 2 + i, (*qrecptblptr)->quantval[DCTSIZE2 * 2 + i]);
+        printf("recp_quantval[%d][%d] = %d\r\n", which_tbl, DCTSIZE2 * 3 + i, (*qrecptblptr)->quantval[DCTSIZE2 * 3 + i]);
     }
-
+    printf("**********************\r\n");
 #endif//DBG_NVT_JPEG
 
 #endif

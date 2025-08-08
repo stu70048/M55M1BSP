@@ -122,9 +122,9 @@ int main(void)
     InitDebugUart();
 
     printf("CPU @ %dHz\n", SystemCoreClock);
-    printf("+------------------------------------------+\n");
-    printf("|         M55M1 KS ECDH Sample Code        |\n");
-    printf("+------------------------------------------+\n");
+    printf("+-------------------------------------------+\n");
+    printf("|            KS ECDH Sample Code            |\n");
+    printf("+-------------------------------------------+\n");
 
     /* Init Key Store */
     KS_Open();

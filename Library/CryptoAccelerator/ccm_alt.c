@@ -60,20 +60,35 @@
 
 
 
-#define START       CRPT_AES_CTL_START_Msk
-#define DMAEN       CRPT_AES_CTL_DMAEN_Msk
-#define DMALAST     CRPT_AES_CTL_DMALAST_Msk
-#define DMACC       CRPT_AES_CTL_DMACSCAD_Msk
-#define START       CRPT_AES_CTL_START_Msk
-#define FBIN        CRPT_AES_CTL_FBIN_Msk
-#define FBOUT       CRPT_AES_CTL_FBOUT_Msk
+#define START       CRYPTO_AES_CTL_START_Msk
+#define DMAEN       CRYPTO_AES_CTL_DMAEN_Msk
+#define DMALAST     CRYPTO_AES_CTL_DMALAST_Msk
+#define DMACC       CRYPTO_AES_CTL_DMACSCAD_Msk
+#define START       CRYPTO_AES_CTL_START_Msk
+#define FBIN        CRYPTO_AES_CTL_FBIN_Msk
+#define FBOUT       CRYPTO_AES_CTL_FBOUT_Msk
 
-#define GCM_MODE    (AES_MODE_GCM << CRPT_AES_CTL_OPMODE_Pos)
-#define GHASH_MODE  (AES_MODE_GHASH << CRPT_AES_CTL_OPMODE_Pos)
-#define CTR_MODE    (AES_MODE_CTR << CRPT_AES_CTL_OPMODE_Pos)
+#define GCM_MODE    (AES_MODE_GCM << CRYPTO_AES_CTL_OPMODE_Pos)
+#define GHASH_MODE  (AES_MODE_GHASH << CRYPTO_AES_CTL_OPMODE_Pos)
+#define CTR_MODE    (AES_MODE_CTR << CRYPTO_AES_CTL_OPMODE_Pos)
+
+#define CCM_STATE__CLEAR                0
+#define CCM_STATE__STARTED              (1 << 0)
+#define CCM_STATE__LENGHTS_SET          (1 << 1)
+#define CCM_STATE__AUTH_DATA_STARTED    (1 << 2)
+#define CCM_STATE__AUTH_DATA_FINISHED   (1 << 3)
+#define CCM_STATE__ERROR                (1 << 4)
 
 
-
+#if (NVT_DCACHE_ON == 1)
+    // DCache-line aligned buffer for improved performance when DCache is enabled
+    uint8_t ccm_buf_array[DCACHE_ALIGN_LINE_SIZE(MAX_CCM_BUF)] __attribute__((aligned(DCACHE_LINE_SIZE)));
+    uint8_t out_buf_array[DCACHE_ALIGN_LINE_SIZE(MAX_CCM_BUF + 16)] __attribute__((aligned(DCACHE_LINE_SIZE)));
+#else
+    // Standard buffer alignment when DCache is disabled
+    __attribute__((aligned(4))) static uint8_t ccm_buf_array[MAX_CCM_BUF];
+    __attribute__((aligned(4))) static uint8_t out_buf_array[MAX_CCM_BUF + 16];
+#endif
 
 int32_t ToBigEndian(uint8_t *pbuf, uint32_t u32Size)
 {
@@ -247,19 +262,22 @@ static int32_t _CCM(mbedtls_ccm_context *ctx, int32_t enc, const uint8_t *iv, ui
 
     for (i = 0; i < 8; i++)
     {
-        key[i] = CRPT->AES_KEY[i];
+        key[i] = CRYPTO->AES_KEY[i];
     }
 
-    SYS->IPRST0 = SYS_IPRST0_CRPTRST_Msk;
-    SYS->IPRST0 = 0;
+    /* Reset Crypto */
+    SYS_UnlockReg();
+    SYS->CRYPTORST |= SYS_CRYPTORST_CRYPTO0RST_Msk;
+    SYS->CRYPTORST = 0;
+    SYS_LockReg();
 
     for (i = 0; i < 8; i++)
     {
-        CRPT->AES_KEY[i] = key[i];
+        CRYPTO->AES_KEY[i] = key[i];
     }
 
 
-    AES_ENABLE_INT(CRPT);
+    AES_ENABLE_INT(CRYPTO);
 
     /* Prepare the blocked buffer for GCM */
     memset(ctx->ccm_buf, 0, MAX_CCM_BUF);
@@ -271,59 +289,63 @@ static int32_t _CCM(mbedtls_ccm_context *ctx, int32_t enc, const uint8_t *iv, ui
 
     if (ctx->keySize == 16)
     {
-        CRPT->AES_CTL = (enc << CRPT_AES_CTL_ENCRPT_Pos) |
-                        (AES_MODE_CCM << CRPT_AES_CTL_OPMODE_Pos) |
-                        (AES_KEY_SIZE_128 << CRPT_AES_CTL_KEYSZ_Pos) |
-                        (AES_OUT_SWAP << CRPT_AES_CTL_OUTSWAP_Pos);
+        CRYPTO->AES_CTL = (enc << CRYPTO_AES_CTL_ENCRYPTO_Pos) |
+                          (AES_MODE_CCM << CRYPTO_AES_CTL_OPMODE_Pos) |
+                          (AES_KEY_SIZE_128 << CRYPTO_AES_CTL_KEYSZ_Pos) |
+                          (AES_OUT_SWAP << CRYPTO_AES_CTL_OUTSWAP_Pos);
     }
     else if (ctx->keySize == 24)
     {
-        CRPT->AES_CTL = (enc << CRPT_AES_CTL_ENCRPT_Pos) |
-                        (AES_MODE_CCM << CRPT_AES_CTL_OPMODE_Pos) |
-                        (AES_KEY_SIZE_192 << CRPT_AES_CTL_KEYSZ_Pos) |
-                        (AES_OUT_SWAP << CRPT_AES_CTL_OUTSWAP_Pos);
+        CRYPTO->AES_CTL = (enc << CRYPTO_AES_CTL_ENCRYPTO_Pos) |
+                          (AES_MODE_CCM << CRYPTO_AES_CTL_OPMODE_Pos) |
+                          (AES_KEY_SIZE_192 << CRYPTO_AES_CTL_KEYSZ_Pos) |
+                          (AES_OUT_SWAP << CRYPTO_AES_CTL_OUTSWAP_Pos);
     }
     else
     {
-        CRPT->AES_CTL = (enc << CRPT_AES_CTL_ENCRPT_Pos) |
-                        (AES_MODE_CCM << CRPT_AES_CTL_OPMODE_Pos) |
-                        (AES_KEY_SIZE_256 << CRPT_AES_CTL_KEYSZ_Pos) |
-                        (AES_OUT_SWAP << CRPT_AES_CTL_OUTSWAP_Pos);
+        CRYPTO->AES_CTL = (enc << CRYPTO_AES_CTL_ENCRYPTO_Pos) |
+                          (AES_MODE_CCM << CRYPTO_AES_CTL_OPMODE_Pos) |
+                          (AES_KEY_SIZE_256 << CRYPTO_AES_CTL_KEYSZ_Pos) |
+                          (AES_OUT_SWAP << CRYPTO_AES_CTL_OUTSWAP_Pos);
     }
 
 
     pu32 = (uint32_t *)&ctx->ccm_buf[size];
-    CRPT->AES_IV[0] = pu32[0];
-    CRPT->AES_IV[1] = pu32[1];
-    CRPT->AES_IV[2] = pu32[2];
-    CRPT->AES_IV[3] = pu32[3];
+    CRYPTO->AES_IV[0] = pu32[0];
+    CRYPTO->AES_IV[1] = pu32[1];
+    CRYPTO->AES_IV[2] = pu32[2];
+    CRYPTO->AES_IV[3] = pu32[3];
 
 
     /* Set bytes count of A */
-    CRPT->AES_GCM_ACNT[0] = size - plen_aligned;
-    CRPT->AES_GCM_ACNT[1] = 0;
-    CRPT->AES_GCM_PCNT[0] = plen;
-    CRPT->AES_GCM_PCNT[1] = 0;
+    CRYPTO->AES_GCM_ACNT[0] = size - plen_aligned;
+    CRYPTO->AES_GCM_ACNT[1] = 0;
+    CRYPTO->AES_GCM_PCNT[0] = plen;
+    CRYPTO->AES_GCM_PCNT[1] = 0;
 
+#if (NVT_DCACHE_ON == 1)
+    SCB_CleanDCache_by_Addr(ctx->ccm_buf, sizeof(ccm_buf_array));
+#endif
 
-
-    CRPT->AES_SADDR = (uint32_t)ctx->ccm_buf;
-    CRPT->AES_DADDR = (uint32_t)ctx->out_buf;
-    CRPT->AES_CNT   = size;
+    CRYPTO->AES_SADDR = (uint32_t)ctx->ccm_buf;
+    CRYPTO->AES_DADDR = (uint32_t)ctx->out_buf;
+    CRYPTO->AES_CNT   = size;
 
     /* Start AES Eecrypt */
-    CRPT->AES_CTL |= CRPT_AES_CTL_START_Msk | (CRYPTO_DMA_ONE_SHOT << CRPT_AES_CTL_DMALAST_Pos);
+    CRYPTO->AES_CTL |= CRYPTO_AES_CTL_START_Msk | (CRYPTO_DMA_ONE_SHOT << CRYPTO_AES_CTL_DMALAST_Pos);
 
     /* Waiting for AES calculation */
-    while ((CRPT->INTSTS & CRPT_INTSTS_AESIF_Msk) == 0)
+    while ((CRYPTO->INTSTS & CRYPTO_INTSTS_AESIF_Msk) == 0)
     {
         if (timeout-- < 0)
             return -1;
     }
 
     /* Clear flag */
-    CRPT->INTSTS = CRPT_INTSTS_AESIF_Msk;
-
+    CRYPTO->INTSTS = CRYPTO_INTSTS_AESIF_Msk;
+#if (NVT_DCACHE_ON == 1)
+    SCB_InvalidateDCache_by_Addr(ctx->out_buf, sizeof(out_buf_array));
+#endif
     memcpy(buf, ctx->out_buf, plen);
 
     if (tlen > 16)
@@ -346,6 +368,9 @@ void mbedtls_ccm_init(mbedtls_ccm_context *ctx)
 {
     CCM_VALIDATE(ctx != NULL);
     memset(ctx, 0, sizeof(mbedtls_ccm_context));
+
+    ctx->ccm_buf = &ccm_buf_array[0];
+    ctx->out_buf = &out_buf_array[0];
 }
 
 int mbedtls_ccm_setkey(mbedtls_ccm_context *ctx,
@@ -388,7 +413,7 @@ int mbedtls_ccm_setkey(mbedtls_ccm_context *ctx,
 
     for (i = 0; i < klen / 4; i++)
     {
-        CRPT->AES_KEY[i] = au32Buf[i];
+        CRYPTO->AES_KEY[i] = au32Buf[i];
     }
 
     return (0);
@@ -551,6 +576,148 @@ int mbedtls_ccm_auth_decrypt(mbedtls_ccm_context *ctx, size_t length,
 
     return (mbedtls_ccm_star_auth_decrypt(ctx, length, iv, iv_len, add,
                                           add_len, input, output, tag, tag_len));
+}
+
+static int ccm_calculate_first_block_if_ready(mbedtls_ccm_context *ctx)
+{
+    //int ret = MBEDTLS_ERR_ERROR_CORRUPTION_DETECTED;
+    unsigned char i;
+    size_t len_left;//, olen;
+
+    /* length calulcation can be done only after both
+     * mbedtls_ccm_starts() and mbedtls_ccm_set_lengths() have been executed
+     */
+    if (!(ctx->state & CCM_STATE__STARTED) || !(ctx->state & CCM_STATE__LENGHTS_SET))
+        return 0;
+
+    /* CCM expects non-empty tag.
+     * CCM* allows empty tag. For CCM* without tag, ignore plaintext length.
+     */
+    if (ctx->tag_len == 0)
+    {
+        if (ctx->mode == MBEDTLS_CCM_STAR_ENCRYPT || ctx->mode == MBEDTLS_CCM_STAR_DECRYPT)
+        {
+            ctx->plaintext_len = 0;
+        }
+        else
+        {
+            return (MBEDTLS_ERR_CCM_BAD_INPUT);
+        }
+    }
+
+    /*
+     * First block:
+     * 0        .. 0        flags
+     * 1        .. iv_len   nonce (aka iv)  - set by: mbedtls_ccm_starts()
+     * iv_len+1 .. 15       length
+     *
+     * With flags as (bits):
+     * 7        0
+     * 6        add present?
+     * 5 .. 3   (t - 2) / 2
+     * 2 .. 0   q - 1
+     */
+    ctx->y[0] |= (ctx->add_len > 0) << 6;
+    ctx->y[0] |= ((ctx->tag_len - 2) / 2) << 3;
+    ctx->y[0] |= ctx->q - 1;
+
+    for (i = 0, len_left = ctx->plaintext_len; i < ctx->q; i++, len_left >>= 8)
+        ctx->y[15 - i] = MBEDTLS_BYTE_0(len_left);
+
+    if (len_left > 0)
+    {
+        ctx->state |= CCM_STATE__ERROR;
+        return (MBEDTLS_ERR_CCM_BAD_INPUT);
+    }
+
+    return (0);
+}
+
+int mbedtls_ccm_starts(mbedtls_ccm_context *ctx,
+                       int mode,
+                       const unsigned char *iv,
+                       size_t iv_len)
+{
+    /* Also implies q is within bounds */
+    if (iv_len < 7 || iv_len > 13)
+        return (MBEDTLS_ERR_CCM_BAD_INPUT);
+
+    ctx->mode = mode;
+    ctx->q = 16 - 1 - (unsigned char) iv_len;
+
+    /*
+     * Prepare counter block for encryption:
+     * 0        .. 0        flags
+     * 1        .. iv_len   nonce (aka iv)
+     * iv_len+1 .. 15       counter (initially 1)
+     *
+     * With flags as (bits):
+     * 7 .. 3   0
+     * 2 .. 0   q - 1
+     */
+    memset(ctx->ctr, 0, 16);
+    ctx->ctr[0] = ctx->q - 1;
+    memcpy(ctx->ctr + 1, iv, iv_len);
+    memset(ctx->ctr + 1 + iv_len, 0, ctx->q);
+    ctx->ctr[15] = 1;
+
+    /*
+     * See ccm_calculate_first_block_if_ready() for block layout description
+     */
+    memcpy(ctx->y + 1, iv, iv_len);
+
+    ctx->state |= CCM_STATE__STARTED;
+    return ccm_calculate_first_block_if_ready(ctx);
+}
+
+int mbedtls_ccm_set_lengths(mbedtls_ccm_context *ctx,
+                            size_t total_ad_len,
+                            size_t plaintext_len,
+                            size_t tag_len)
+{
+    /*
+     * Check length requirements: SP800-38C A.1
+     * Additional requirement: a < 2^16 - 2^8 to simplify the code.
+     * 'length' checked later (when writing it to the first block)
+     *
+     * Also, loosen the requirements to enable support for CCM* (IEEE 802.15.4).
+     */
+    if (tag_len == 2 || tag_len > 16 || tag_len % 2 != 0)
+        return (MBEDTLS_ERR_CCM_BAD_INPUT);
+
+    if (total_ad_len >= 0xFF00)
+        return (MBEDTLS_ERR_CCM_BAD_INPUT);
+
+    ctx->plaintext_len = plaintext_len;
+    ctx->add_len = total_ad_len;
+    ctx->tag_len = tag_len;
+    ctx->processed = 0;
+
+    ctx->state |= CCM_STATE__LENGHTS_SET;
+    return ccm_calculate_first_block_if_ready(ctx);
+}
+
+int mbedtls_ccm_update(mbedtls_ccm_context *ctx,
+                       const unsigned char *input, size_t input_len,
+                       unsigned char *output, size_t output_size,
+                       size_t *output_len)
+{
+    return MBEDTLS_ERR_PLATFORM_HW_ACCEL_FAILED;
+}
+
+int mbedtls_ccm_update_ad(mbedtls_ccm_context *ctx,
+                          const unsigned char *add,
+                          size_t add_len)
+{
+
+    return MBEDTLS_ERR_PLATFORM_HW_ACCEL_FAILED;
+
+}
+
+int mbedtls_ccm_finish(mbedtls_ccm_context *ctx,
+                       unsigned char *tag, size_t tag_len)
+{
+    return (0);
 }
 #endif /* MBEDTLS_CCM_ALT */
 #endif /* MBEDTLS_CCM_C */

@@ -69,7 +69,7 @@ typedef union {
 #define PROVIDE_ISLOW_TABLES
 #endif
 #endif
-
+#include <stdint.h>
 
 /*
  * Perform forward DCT on one or more blocks of a component.
@@ -94,9 +94,9 @@ forward_DCT (j_compress_ptr cinfo, jpeg_component_info * compptr,
 #ifdef WITH_JPEGACC
     /*To fit the simd int16x8 format, allocation space for int16 data*/
     DCTELEM * divisors_recp = (DCTELEM *) compptr->dct_recp_table;
-    int16_t i16workspace[DCTSIZE2];
-    int16_t i16divisors_recp[DCTSIZE2*4];
-	
+    //int16_t i16workspace[DCTSIZE2];
+	  int16_t i16divisors_recp[DCTSIZE2*4];
+	  int16_t *divisor_recp_ptr;
 #endif
 
     DCTELEM workspace[DCTSIZE2];	/* work area for FDCT subroutine */
@@ -104,6 +104,8 @@ forward_DCT (j_compress_ptr cinfo, jpeg_component_info * compptr,
 
     sample_data += start_row;	/* fold in the vertical offset once */
 
+	 	
+	
     for (bi = 0; bi < num_blocks; bi++, start_col += compptr->DCT_h_scaled_size) {
         /* Perform the DCT */
         (*do_dct) (workspace, sample_data, start_col);
@@ -115,19 +117,23 @@ forward_DCT (j_compress_ptr cinfo, jpeg_component_info * compptr,
 
 #ifdef WITH_JPEGACC
             /*Do coeffcient quantization in the following loop*/
-            for (i = 0; i < DCTSIZE2; i++)
-                i16workspace[i] = (int16_t)(workspace[i]);
-
-            for (i = 0; i < DCTSIZE2*4; i++)
-                i16divisors_recp[i] = (int16_t)(divisors_recp[i]);
-
-					jsimd_quantize_helium(output_ptr, (DCTELEM *)(i16divisors_recp),(DCTELEM *)(i16workspace));
+// 				    for (i = 0; i < DCTSIZE2*4; i++)
+//                i16divisors_recp[i] = (int16_t)(divisors_recp[i]);
+					
+					  if(compptr->component_index==0)//(Y,Cb,Cr) = (0,1,2)
+						    divisor_recp_ptr = g_i16divisors_recp0;
+						else
+							  divisor_recp_ptr = g_i16divisors_recp1;
+						
+ 						jsimd_quantize_helium(output_ptr, (DCTELEM *)(divisor_recp_ptr),(DCTELEM *)(i16simdbuf));
+				  
 #ifdef DBG_NVT_JPEG
-					 for (i = 0; i < DCTSIZE2*4; i++)
+					 printf("Current component_index: %d \r\n", compptr->component_index);		/*Check YUV*/
+					 for (i = 0; i < 16; i++)
                 printf("i16divisors_recp[%d]=%d \r\n",i, divisors_recp[i]);					
-            for (i = 0; i < DCTSIZE2; i++)
-                printf("i16workspace[%d]=%d \r\n",i, i16workspace[i]);
-            for (i = 0; i < DCTSIZE2; i++)
+           //for (i = 0; i < DCTSIZE2; i++)
+           //     printf("i16workspace[%d]=%d \r\n",i, i16workspace[i]);
+           for (i = 0; i < DCTSIZE2; i++)
                 printf("simd_output_ptr[%d]=%d \r\n",i, output_ptr[i]);
 #endif//DBG_NVT_JPEG        
 

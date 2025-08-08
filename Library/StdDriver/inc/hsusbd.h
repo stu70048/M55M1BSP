@@ -193,6 +193,8 @@ extern volatile uint8_t g_hsusbd_RemoteWakeupEn;
 #define HSUSBD_DISABLE_LPM()              ((uint32_t)(HSUSBD->LPMCSR &= ~HSUSBD_LPMCSR_LPMEN_Msk)) /*!<Disable LPM  \hideinitializer */
 #define HSUSBD_ENABLE_LPMSLEEP()          ((uint32_t)(HSUSBD->LPMCSR |= HSUSBD_LPMCSR_LPMSLEEPEN_Pos)) /*!<Enable LPMSLEEP  \hideinitializer */
 #define HSUSBD_DISABLE_LPMSLEEP()         ((uint32_t)(HSUSBD->LPMCSR &= ~HSUSBD_LPMCSR_LPMSLEEPEN_Pos)) /*!<Disable LPMSLEEP  \hideinitializer */
+#define HSUSBD_ENABLE_HS_HANDSHAKE()      ((uint32_t)(HSUSBD->OPER |= HSUSBD_OPER_HISHSEN_Msk)) /*!<Enable HISHSEN  \hideinitializer */
+#define HSUSBD_DISABLE_HS_HANDSHAKE()     ((uint32_t)(HSUSBD->OPER &= ~HSUSBD_OPER_HISHSEN_Msk)) /*!<Disable HISHSEN  \hideinitializer */
 #define SET_HSUSBDROLE()                  ((uint32_t)(SYS->USBPHY &= ~SYS_USBPHY_HSUSBROLE_Msk)) /*!<Set HSUSB role to HSUSBD  \hideinitializer */
 
 /**

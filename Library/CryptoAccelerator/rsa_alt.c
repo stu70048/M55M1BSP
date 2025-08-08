@@ -78,11 +78,162 @@
 #define RSA_VALIDATE( cond )                                           \
     MBEDTLS_INTERNAL_VALIDATE( cond )
 
+#if (NVT_DCACHE_ON == 1)
+    // DCache-line aligned buffer for improved performance when DCache is enabled
+    uint8_t rsa_buf[DCACHE_ALIGN_LINE_SIZE(128)] __attribute__((aligned(DCACHE_LINE_SIZE)));
+#else
+    // Standard buffer alignment when DCache is disabled
+    __attribute__((aligned(4))) static uint8_t rsa_buf[128];
+#endif
 
 int RSA_Run(void);
 void rsa_dma_buf_init(mbedtls_rsa_context *ctx, mbedtls_mpi *ed);
 void memcpy_be(void *dest, void *src, uint32_t size);
 
+
+//
+bool is_aligned_32(void *ptr)
+{
+    // Convert the pointer to an integer type for arithmetic operations
+    uintptr_t address = (uintptr_t)ptr;
+
+    // Check if the address is divisible by 32
+    return (address % 32) == 0;
+}
+
+uint32_t *get_aligned_32(void *ptr)
+{
+    // Convert the pointer to an integer type for arithmetic operations
+    uintptr_t address = (uintptr_t)ptr;
+
+    uint32_t aligned_32_remainder = (address % 32);
+    // Check if the address is divisible by 32
+
+    uint32_t ttmp = (uint32_t)(ptr) - aligned_32_remainder + 32;
+#ifdef DUMP_RSA_CACHEALIGNMENT
+    printf("ptr Allocate from  heap at (0x%x)\r\n", (ptr));
+    printf("aligned_32_remainder :%d \r\n", aligned_32_remainder);
+    printf("ttmp = (0x%x)\r\n", ttmp);
+#endif
+    return (uint32_t *)(ttmp);
+}
+
+uint32_t heap_cache_aligned_32_handler(void *ptr, uint32_t len, nvt_heap_aligned_descriptor *rdesp)
+{
+    uint32_t res = 0;
+    memset(rdesp, 0, sizeof(nvt_heap_aligned_descriptor));
+
+    // Check address alignment
+    if (is_aligned_32((ptr)) == true)
+    {
+        if (is_aligned_32((void *)(len)) == true)
+        {
+            //Length alignment
+            res = 0;
+            rdesp->type_aligned = 0;
+            rdesp->uplen = &len;
+            rdesp->vptr = ptr;
+            rdesp->uplen_aligned = &len;
+            rdesp->vptr_aligned = ptr;
+        }
+        else
+        {
+            //Length NOT alignment
+            res = 1;
+            rdesp->type_aligned = 1;
+            rdesp->uplen = &len;
+            rdesp->uplen_aligned = get_aligned_32((void *)(rdesp->uplen));
+
+            rdesp->vptr = (uint32_t *)calloc(*(rdesp->uplen_aligned) + DCACHE_LINE_SIZE, sizeof(uint32_t));
+            rdesp->vptr_aligned = rdesp->vptr;
+
+            memcpy(rdesp->vptr_aligned, rdesp->vptr, *(rdesp->uplen_aligned));
+        }
+    }
+    else//Not address alignment
+    {
+
+
+        if (is_aligned_32((void *)(len)) == true)
+        {
+            res = 2;
+            rdesp->type_aligned = 2;
+            //Length alignment
+            rdesp->uplen = &len;
+            rdesp->uplen_aligned = &len;
+            rdesp->vptr = (uint32_t *)calloc(*(rdesp->uplen) + DCACHE_LINE_SIZE, sizeof(uint32_t));
+            rdesp->vptr_aligned = get_aligned_32((void *)(rdesp->vptr));
+#ifdef DBG_RSA_CACHEALIGNMENT
+
+            for (int ii = 0; ii < len; ii++)
+                printf("%x,\r\n", *((uint32_t *)(ptr++)));
+
+#endif
+
+            memcpy((uint8_t *)(rdesp->vptr_aligned), (uint8_t *)(ptr), (*(rdesp->uplen_aligned)) * 4);
+#ifdef DBG_RSA_CACHEALIGNMENT
+
+            for (int jj = 0; jj < * (rdesp->uplen_aligned) * 4; jj++)
+                *(uint8_t *)(rdesp->vptr_aligned++) = *((uint8_t *)(ptr++));
+
+            for (int jj = 0; jj < * (rdesp->uplen_aligned); jj++)
+                printf("%x, \r\n", *(uint32_t *)(rdesp->vptr_aligned++));
+
+#endif
+        }
+        else
+        {
+            res = 3;
+            rdesp->type_aligned = 3;
+            //Length NOT alignment
+            rdesp->uplen = &len;
+            rdesp->uplen_aligned = get_aligned_32((void *)(rdesp->uplen));
+            rdesp->vptr = (uint32_t *)calloc(*(rdesp->uplen_aligned) + DCACHE_LINE_SIZE, sizeof(uint32_t));
+            rdesp->vptr_aligned = get_aligned_32((void *)(rdesp->vptr));
+            memcpy(rdesp->vptr_aligned, rdesp->vptr, *(rdesp->uplen_aligned));
+        }
+
+    }
+
+#ifdef DUMP_RSA_CACHEALIGNMENT
+    printf("Aligned type is %d\r\n",  rdesp->type_aligned);
+    printf("Allocate a heap at (0x%x), length is %d\r\n", (ptr), len);
+    printf("Aligned    heap to (0x%x), length to %d\r\n", (rdesp->vptr), *(rdesp->uplen));
+    printf("Fit        heap to (0x%x), length to %d\r\n", (rdesp->vptr_aligned), *(rdesp->uplen_aligned));
+#endif
+    return res;
+
+}
+
+
+uint32_t heap_cache_aligned_32_free(nvt_heap_aligned_descriptor *rdesp)
+{
+    uint32_t res;
+
+    switch (rdesp->type_aligned)
+    {
+        case 0:
+            //printf("address alignment, length alignment\n");
+            res = 0;
+            break;
+
+        case 1:
+        case 2:
+        case 3:
+            res = rdesp->type_aligned;
+            //printf("cache aligned, case %d\n", res);
+            free(rdesp->vptr);
+            break;
+
+        default:
+            //printf("Wrong aligned type\n");
+            res = 0x0F;
+            break;
+    }
+
+    return res;
+}
+//
 
 int RSA_Run(void)
 {
@@ -104,23 +255,69 @@ int RSA_Run(void)
     return (0);
 }
 
+nvt_heap_aligned_descriptor heap_sr_0, heap_sr_1, heap_sr_2;
+
 void rsa_dma_buf_init(mbedtls_rsa_context *ctx, mbedtls_mpi *ed)
 {
+    uint32_t res;
+
     mbedtls_mpi_grow(ed, ctx->MBEDTLS_PRIVATE(len));
     mbedtls_mpi_grow(&ctx->M, ctx->MBEDTLS_PRIVATE(len));
     mbedtls_mpi_grow(&ctx->MBEDTLS_PRIVATE(N), ctx->MBEDTLS_PRIVATE(len));
 
 #if (NVT_DCACHE_ON == 1)
+
+#ifdef DBG_RSA_CACHEALIGNMENT
+    printf("mbedtls_mpi_grow 1:\r\n");
+    printf("(ctx->M.MBEDTLS_PRIVATE(p))= 0x%x\n", (ctx->M.MBEDTLS_PRIVATE(p)));
+    printf("(ctx->M.MBEDTLS_PRIVATE(n))= %d\n", (ctx->M.MBEDTLS_PRIVATE(n)));
+
+    printf("mbedtls_mpi_grow 2:\r\n");
+    printf("(ctx->MBEDTLS_PRIVATE(N).MBEDTLS_PRIVATE(p))= 0x%x\n", (ctx->MBEDTLS_PRIVATE(N).MBEDTLS_PRIVATE(p)));
+    printf("(ctx->MBEDTLS_PRIVATE(N).MBEDTLS_PRIVATE(n))= %d\n", (ctx->MBEDTLS_PRIVATE(N).MBEDTLS_PRIVATE(n)));
+
+    printf("mbedtls_mpi_grow 3:\r\n");
+    printf("(ed->MBEDTLS_PRIVATE(p))= 0x%x\n", (ed->MBEDTLS_PRIVATE(p)));
+    printf("(ed->MBEDTLS_PRIVATE(n))= %d\n", (ed->MBEDTLS_PRIVATE(n)));
+#endif
+
+#ifdef MANUAL_ALIGNMENT
+
+    res = heap_cache_aligned_32_handler((void *)(ctx->M.MBEDTLS_PRIVATE(p)), (ctx->M.MBEDTLS_PRIVATE(n)), &heap_sr_0);
+    res = heap_cache_aligned_32_handler((void *)(ctx->MBEDTLS_PRIVATE(N).MBEDTLS_PRIVATE(p)), (ctx->MBEDTLS_PRIVATE(N).MBEDTLS_PRIVATE(n)), &heap_sr_1);
+    res = heap_cache_aligned_32_handler((void *)(ed->MBEDTLS_PRIVATE(p)), (ed->MBEDTLS_PRIVATE(n)), &heap_sr_2);
+
+    SCB_CleanDCache_by_Addr((void *)(heap_sr_0.vptr_aligned), *(heap_sr_0.uplen_aligned));
+    SCB_CleanDCache_by_Addr((void *)(heap_sr_1.vptr_aligned), *(heap_sr_1.uplen_aligned));
+    SCB_CleanDCache_by_Addr((void *)(heap_sr_2.vptr_aligned), *(heap_sr_2.uplen_aligned));
+
+    CRYPTO->RSA_SADDR[0] = (uint32_t)(heap_sr_0.vptr_aligned);// Message
+    CRYPTO->RSA_SADDR[1] = (uint32_t)(heap_sr_1.vptr_aligned);
+    CRYPTO->RSA_SADDR[2] = (uint32_t)(heap_sr_2.vptr_aligned);// Public key or private key
+    //printf("++Aligned sr0 heap to (0x%x), length to (%d)\r\n", (heap_sr_0.vptr_aligned), *(heap_sr_0.uplen_aligned));
+    //printf("++Aligned sr1 heap to (0x%x), length to (%d)\r\n", (heap_sr_1.vptr_aligned), *(heap_sr_1.uplen_aligned));
+    //printf("++Aligned sr2 heap to (0x%x), length to (%d)\r\n", (heap_sr_2.vptr_aligned), *(heap_sr_2.uplen_aligned));
+#else
+
     SCB_CleanDCache_by_Addr((void *)(ctx->M.MBEDTLS_PRIVATE(p)), (ctx->M.MBEDTLS_PRIVATE(n)));
     SCB_CleanDCache_by_Addr((void *)(ctx->MBEDTLS_PRIVATE(N).MBEDTLS_PRIVATE(p)), (ctx->MBEDTLS_PRIVATE(N).MBEDTLS_PRIVATE(n)));
     SCB_CleanDCache_by_Addr((void *)(ed->MBEDTLS_PRIVATE(p)), (ed->MBEDTLS_PRIVATE(n)));
-#endif
+
     CRYPTO->RSA_SADDR[0] = (uint32_t)ctx->M.MBEDTLS_PRIVATE(p);// Message
     CRYPTO->RSA_SADDR[1] = (uint32_t)ctx->MBEDTLS_PRIVATE(N).MBEDTLS_PRIVATE(p);
     CRYPTO->RSA_SADDR[2] = (uint32_t)ed->MBEDTLS_PRIVATE(p);   // Public key or private key
 
+#endif
+
+#else
+    CRYPTO->RSA_SADDR[0] = (uint32_t)ctx->M.MBEDTLS_PRIVATE(p);// Message
+    CRYPTO->RSA_SADDR[1] = (uint32_t)ctx->MBEDTLS_PRIVATE(N).MBEDTLS_PRIVATE(p);
+    CRYPTO->RSA_SADDR[2] = (uint32_t)ed->MBEDTLS_PRIVATE(p);   // Public key or private key
+#endif//(NVT_DCACHE_ON == 1)
+
+
     /* Initial memory space for RSA */
-    CRYPTO->RSA_DADDR = (uint32_t)ctx->rsa_buf;
+    CRYPTO->RSA_DADDR = (uint32_t)&rsa_buf[0];
 
 }
 
@@ -888,14 +1085,17 @@ int mbedtls_rsa_public(mbedtls_rsa_context *ctx,
     }
 
 #if (NVT_DCACHE_ON == 1)
-    SCB_InvalidateDCache_by_Addr(&ctx->rsa_buf, ctx->MBEDTLS_PRIVATE(len));
+    SCB_InvalidateDCache_by_Addr(&rsa_buf[0], sizeof(rsa_buf));
+    heap_cache_aligned_32_free(&heap_sr_0);
+    heap_cache_aligned_32_free(&heap_sr_1);
+    heap_cache_aligned_32_free(&heap_sr_2);
 #endif
     mbedtls_mpi_free(&ctx->M);
     //mbedtls_mpi_free(&ctx->CP);
     //mbedtls_mpi_free(&ctx->CQ);
 
     /* output */
-    memcpy_be(output, ctx->rsa_buf, ctx->MBEDTLS_PRIVATE(len));
+    memcpy_be(output, &rsa_buf[0], sizeof(rsa_buf));
 
     //dump(output, 32, "output");
 
@@ -951,7 +1151,10 @@ int mbedtls_rsa_private(mbedtls_rsa_context *ctx,
     }
 
 #if (NVT_DCACHE_ON == 1)
-    SCB_InvalidateDCache_by_Addr(&ctx->rsa_buf, ctx->MBEDTLS_PRIVATE(len));
+    SCB_InvalidateDCache_by_Addr(&rsa_buf[0], sizeof(rsa_buf));
+    heap_cache_aligned_32_free(&heap_sr_0);
+    heap_cache_aligned_32_free(&heap_sr_1);
+    heap_cache_aligned_32_free(&heap_sr_2);
 #endif
     mbedtls_mpi_free(&ctx->M);
     //mbedtls_mpi_free(&ctx->CP);
@@ -959,7 +1162,7 @@ int mbedtls_rsa_private(mbedtls_rsa_context *ctx,
 
     /* Output */
 
-    memcpy_be(output, ctx->rsa_buf, ctx->MBEDTLS_PRIVATE(len));
+    memcpy_be(output, &rsa_buf[0], sizeof(rsa_buf));
 
 
     return (0);

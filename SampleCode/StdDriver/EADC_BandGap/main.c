@@ -35,14 +35,14 @@ void SYS_Init(void)
     /* Switch SCLK clock source to APLL0 and Enable APLL0 220MHz clock */
     CLK_SetBusClock(CLK_SCLKSEL_SCLKSEL_APLL0, CLK_APLLCTL_APLLSRC_HXT, FREQ_220MHZ);
 
-    /* Enable APLL1 200MHz clock */
+    /* Enable APLL1 200MHz clock for maximum EADC clock frequency */
     CLK_EnableAPLL(CLK_APLLCTL_APLLSRC_HXT, FREQ_200MHZ, CLK_APLL1_SELECT);
 
     /* Update System Core Clock */
     /* User can use SystemCoreClockUpdate() to calculate SystemCoreClock. */
     SystemCoreClockUpdate();
 
-    /* Enable EADC peripheral clock */
+    /* Select EADC peripheral clock source(maximum clock frequency = divider 1) */
     CLK_SetModuleClock(EADC0_MODULE, CLK_EADCSEL_EADC0SEL_APLL1_DIV2, CLK_EADCDIV_EADC0DIV(20));
 
     /* Enable EADC module clock */

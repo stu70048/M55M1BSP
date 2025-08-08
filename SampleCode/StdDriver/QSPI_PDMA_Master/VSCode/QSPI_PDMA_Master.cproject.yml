@@ -1,6 +1,6 @@
 project:
   packs:
-    - pack: Nuvoton::NuMicro_DFP
+    - pack: Nuvoton::NuMicroM55_DFP
   setups:
     - setup: Options for QSPIPDMAMaster
       processor:

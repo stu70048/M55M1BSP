@@ -117,8 +117,7 @@ int32_t main(void)
     NVIC_EnableIRQ(HSUSBD_IRQn);
 
     /* Start transaction */
-    HSUSBD->OPER = HSUSBD_OPER_HISPDEN_Msk;   /* high-speed */
-    HSUSBD_CLR_SE0();
+    HSUSBD_Start();
 
     while (1)
     {

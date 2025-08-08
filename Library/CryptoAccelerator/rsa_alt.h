@@ -76,9 +76,20 @@ typedef struct mbedtls_rsa_context
 #endif
 
     mbedtls_mpi M;
-    uint32_t rsa_buf[512 / 4];    //DADDR
 
 }
 mbedtls_rsa_context;
+
+typedef struct nvt_heap_aligned_descriptor
+{
+    void *vptr;
+    uint32_t *uplen;
+    void *vptr_aligned;
+    uint32_t *uplen_aligned;
+    uint8_t type_aligned;
+
+}
+nvt_heap_aligned_descriptor;
+
 
 #endif /* rsa_alt.h */

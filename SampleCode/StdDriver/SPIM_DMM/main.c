@@ -18,7 +18,7 @@
 #define SPIM_PORT_DIV               1
 
 #define DMM_MODE_TRIM
-#define TRIM_PAT_SIZE               32
+#define TRIM_PAT_SIZE               128
 
 //------------------------------------------------------------------------------
 #define FLASH_BLOCK_SIZE            (8 * 1024)  /* Flash block size. Depend on the physical flash. */
@@ -53,7 +53,12 @@ extern SPIM_PHASE_T gsWbEChRdCMD;
 //------------------------------------------------------------------------------
 void SYS_Init(void)
 {
-    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST0;
+    /*
+        Set I/O slew rate to FAST1 (100 MHz).
+        Use FAST1 if targeting 1.8V devices for better timing margin.
+        Adjust if signal issues or EMI are observed.
+    */
+    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST1;
 
     /* Enable Internal RC 12MHz clock */
     CLK_EnableXtalRC(CLK_SRCCTL_HIRCEN_Msk);
@@ -188,6 +193,10 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *p
     uint32_t u32ReTrimCnt = 0;
     uint32_t u32SrcAddr = 0;
     uint32_t u32Div = SPIM_GET_CLOCK_DIVIDER(spim); // Divider value
+    /*
+       SPIM DMA requires memory buffers to be 8-byte aligned.
+       TRIM_PAT_SIZE is in bytes and must be divisible by 8.
+    */
     uint64_t au64TrimPattern[(TRIM_PAT_SIZE * 2) / 8] = {0};
     uint64_t au64VerifyBuf[(TRIM_PAT_SIZE / 8)] = {0};
     uint8_t *pu8TrimPattern = (uint8_t *)au64TrimPattern;
@@ -477,8 +486,6 @@ int main()
 
     /* Set SPIM clock as HCLK divided by 1 */
     SPIM_SET_CLOCK_DIVIDER(SPIM_PORT, SPIM_PORT_DIV);
-
-    SPIM_DISABLE_CIPHER(SPIM_PORT);
 
     if (SPIM_InitFlash(SPIM_PORT, SPIM_OP_ENABLE))      /* Initialized SPI flash */
     {

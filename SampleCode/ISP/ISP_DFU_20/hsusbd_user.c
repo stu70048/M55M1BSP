@@ -92,6 +92,7 @@ void HSUSBD_Start(void)
 {
     HSUSBD->OPER = HSUSBD_OPER_HISPDEN_Msk;   /* high-speed */
     HSUSBD_CLR_SE0();
+    HSUSBD->OPER |= HSUSBD_OPER_HISHSEN_Msk;  /* Start high speed handshake*/
 }
 
 /**

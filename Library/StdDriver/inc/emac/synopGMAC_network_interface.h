@@ -44,6 +44,7 @@ s32 synopGMAC_setup_tx_desc_queue(synopGMACdevice *gmacdev, DmaDesc *first_desc,
 s32 synopGMAC_setup_rx_desc_queue(synopGMACdevice *gmacdev, DmaDesc *first_desc, u32 no_of_desc, u32 desc_mode);
 s32 synopGMAC_xmit_frames(synopGMACdevice *gmacdev, u8 *pkt_data, u32 pkt_len, u32 offload_needed, u32 ts);
 s32 synop_handle_received_data(synopGMACdevice *gmacdev, PKT_FRAME_T **ppsPktFrame);
+void synopGMAC_set_speed(synopGMACdevice *gmacdev);
 void synop_handle_transmit_over(synopGMACdevice *gmacdev);
 void synopGMAC_set_mode(synopGMACdevice *gmacdev, int mode);
 void synopGMAC_powerup_mac(synopGMACdevice *gmacdev);

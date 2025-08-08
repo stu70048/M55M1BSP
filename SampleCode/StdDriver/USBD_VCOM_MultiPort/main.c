@@ -298,7 +298,7 @@ void SYS_Init(void)
     /* Select UART0 clock source from HIRC */
     CLK_SetModuleClock(UART0_MODULE, CLK_UARTSEL0_UART0SEL_HIRC, CLK_UARTDIV0_UART0DIV(1));
     /* Enable UART clock */
-    CLK_EnableModuleClock(UART6_MODULE);
+    CLK_EnableModuleClock(UART0_MODULE);
 #endif
 #endif
 

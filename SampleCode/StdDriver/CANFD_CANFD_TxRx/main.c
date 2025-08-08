@@ -102,18 +102,18 @@ void CANFD_Init(void)
     /* Open the CAN FD0 feature */
     CANFD_Open(CANFD0, &sCANFD_Config);
 
-    /* receive 0x110 in CAN FD0 rx message buffer 0 by setting mask 0 */
+    /* receive 0x110 in CAN FD0 rx message buffer 0 by setting index 0 */
     CANFD_SetSIDFltr(CANFD0, 0, CANFD_RX_BUFFER_STD(0x111, 0));
-    /* receive 0x220 in CAN FD0 rx message buffer 0 by setting mask 1 */
+    /* receive 0x220 in CAN FD0 rx message buffer 0 by setting index 1 */
     CANFD_SetSIDFltr(CANFD0, 1, CANFD_RX_BUFFER_STD(0x22F, 0));
-    /* receive 0x333 in CAN FD0 rx message buffer 0 by setting mask 2 */
+    /* receive 0x333 in CAN FD0 rx message buffer 0 by setting index 2 */
     CANFD_SetSIDFltr(CANFD0, 2, CANFD_RX_BUFFER_STD(0x333, 0));
 
-    /* receive 0x222 (29-bit id) in CAN FD0 rx message buffer 1 by setting mask 3 */
+    /* receive 0x222 (29-bit id) in CAN FD0 rx message buffer 1 by setting index 0 */
     CANFD_SetXIDFltr(CANFD0, 0, CANFD_RX_BUFFER_EXT_LOW(0x222, 1), CANFD_RX_BUFFER_EXT_HIGH(0x222, 1));
-    /* receive 0x3333 (29-bit id) in CAN FD0 rx message buffer 1 by setting mask 3 */
+    /* receive 0x3333 (29-bit id) in CAN FD0 rx message buffer 1 by setting index 1 */
     CANFD_SetXIDFltr(CANFD0, 1, CANFD_RX_BUFFER_EXT_LOW(0x3333, 1), CANFD_RX_BUFFER_EXT_HIGH(0x3333, 1));
-    /* receive 0x44444 (29-bit id) in CAN FD0 rx message buffer 1 by setting mask 3 */
+    /* receive 0x44444 (29-bit id) in CAN FD0 rx message buffer 1 by setting index 2 */
     CANFD_SetXIDFltr(CANFD0, 2, CANFD_RX_BUFFER_EXT_LOW(0x44444, 1), CANFD_RX_BUFFER_EXT_HIGH(0x44444, 1));
     /* CAN FD0 Run to Normal mode */
     CANFD_RunToNormal(CANFD0, TRUE);

@@ -112,7 +112,7 @@ int main(void)
     ------------------------------------------------------------------------------------------------------*/
     /* Initializes GDMA */
     dma350_init(&GDMA_DEV_S);
-    /* Fill 3x3 Blcok with 33 from (0,0) */
+    /* Fill 3x3 Block with 33 from (0,0) */
     lib_err = dma350_fill_to_bitmap(GDMA_CH_DEV_S[0],
                                     au8DestArray,
                                     3, 3, GDMA_XSIZE,
@@ -126,7 +126,7 @@ int main(void)
         printf("\nGDMA transfer error !!\n");
     }
 
-    /* Fill 5x5 Blcok with 55 from (5,5) */
+    /* Fill 5x5 Block with 55 from (3,3) */
     lib_err = dma350_fill_to_bitmap(GDMA_CH_DEV_S[0],
                                     au8DestArray + 3 * GDMA_XSIZE + 3,
                                     5, 5, GDMA_XSIZE,

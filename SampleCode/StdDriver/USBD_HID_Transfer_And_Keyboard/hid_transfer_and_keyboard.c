@@ -32,8 +32,8 @@ uint32_t LED_SATUS = 0;
  */
 NVT_ITCM void USBD_IRQHandler(void)
 {
-    uint32_t u32IntSts = USBD_GET_INT_FLAG();
-    uint32_t u32State = USBD_GET_BUS_STATE();
+    volatile uint32_t u32IntSts = USBD_GET_INT_FLAG();
+    volatile uint32_t u32State = USBD_GET_BUS_STATE();
 
     //------------------------------------------------------------------
     if (u32IntSts & USBD_INTSTS_FLDET)
@@ -668,14 +668,12 @@ void HID_SetInReport(void)
 void HID_UpdateKbData(void)
 {
     int32_t i;
-    uint8_t *pu8Buf;
+    uint8_t u8Buf[8] = {0};
     uint32_t u32Key = 0xF;
     static uint32_t u32PreKey;
 
     if (s_u8EP4Ready)
     {
-        pu8Buf = (uint8_t *)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP4));
-
         /* If PI.11 = 0, just report it is key 'a' */
         u32Key = (PI->PIN & (1 << 11)) ? 0 : 1;
 
@@ -683,19 +681,21 @@ void HID_UpdateKbData(void)
         {
             for (i = 0; i < 8; i++)
             {
-                pu8Buf[i] = 0;
+                u8Buf[i] = 0;
             }
 
             if (u32Key != u32PreKey)
             {
                 /* Trigger to note key release */
+                USBD_MemCopy((uint8_t *)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP4)), u8Buf, 8);
                 USBD_SET_PAYLOAD_LEN(EP4, 8);
             }
         }
         else
         {
             u32PreKey = u32Key;
-            pu8Buf[2] = 0x04; /* Key a */
+            u8Buf[2] = 0x04; /* Key a */
+            USBD_MemCopy((uint8_t *)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP4)), u8Buf, 8);
             USBD_SET_PAYLOAD_LEN(EP4, 8);
         }
     }

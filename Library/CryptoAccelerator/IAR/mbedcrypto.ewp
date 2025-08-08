@@ -230,6 +230,7 @@
                     <state>MBEDTLS_CONFIG_FILE=mbedtls_config.h</state>
                     <state>MBEDTLS_MD_CAN_SHA256</state>
                     <state>MBEDTLS_MD_CAN_SHA1</state>
+					<state>MANUAL_ALIGNMENT</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>

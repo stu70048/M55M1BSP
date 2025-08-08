@@ -1145,7 +1145,7 @@ uint32_t UTCPD_Open(int port)
     /* Reset UTCPD  */
     SYS_ResetModule(SYS_UTCPD0RST);
 
-    /* Workaround solution */
+
     outp32((uint32_t)UTCPD0_BASE + 0x308, 0xA5);
     // UTCPD trim value, if romap has , you can't write this code.
     outp32((uint32_t)UTCPD0_BASE + 0x118, 0x82648423);
@@ -1158,7 +1158,6 @@ uint32_t UTCPD_Open(int port)
     tcpc_addr_write16(port, NULL, UTCPD_PHYCTL, 0x03);
 
 
-    /* Workaround solution */
     outp32((uint32_t)UTCPD0_BASE + 0x308, 0);
     UTCPD_frs_mux_selection(port, 1, 1);
     UTCPD_vconn_mux_selection(port, 1, 1);

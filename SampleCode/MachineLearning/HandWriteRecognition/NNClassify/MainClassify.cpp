@@ -8,7 +8,7 @@
  *****************************************************************************/
 #include <float.h>
 #include "MainClassify.h"
-#include "CNNModel.h"
+#include "CnnModel.h"
 #include "board_m55m1.h"
 
 

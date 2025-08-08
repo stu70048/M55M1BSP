@@ -189,12 +189,12 @@ void TIMER1_Init(void)
     TIMER_Open(TIMER1, TIMER_PERIODIC_MODE, 100);
 
     /* Enable timer interrupt */
-    //    TIMER_EnableInt(TIMER0);
+    //    TIMER_EnableInt(TIMER1);
     //    NVIC_EnableIRQ(TIMER1_IRQn);
 
-    /* Timer0 trigger target is EADC */
-    TIMER1->TRGCTL |= TIMER_TRGCTL_TRGEADC_Msk;
-    /* Start Timer 0 */
+    /* Timer1 trigger target is EADC */
+    TIMER_SetTriggerTarget(TIMER1, TIMER_TRG_TO_EADC);
+    /* Start Timer 1 */
     TIMER_Start(TIMER1);
 }
 

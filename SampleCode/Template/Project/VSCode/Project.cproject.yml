@@ -1,6 +1,6 @@
 project:
   packs:
-    - pack: Nuvoton::NuMicro_DFP
+    - pack: Nuvoton::NuMicroM55_DFP
   setups:
     - output:
         # bin, elf, hex, lib
@@ -58,10 +58,13 @@ project:
     - group: User
       files:
         - file: ../main.c
-  # Scheduled for CMSIS-Toolbox 2.4 - Q2'24
+
   executes:
+    - execute: HelloPython
+      run: python -V
+      always: # always generate signed fw image
     - execute: PostBuildScript
-      run: ../post_build.bat $input$
+      run: python ../post_build.py $input$
       always:
       input:
         - $bin()$

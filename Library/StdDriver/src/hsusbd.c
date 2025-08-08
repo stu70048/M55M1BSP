@@ -831,7 +831,11 @@ void HSUSBD_SetVendorRequest(HSUSBD_VENDOR_REQ pfnVendorReq)
  */
 void SYS_Enable_HSUSB_PHY(void)
 {
+    uint32_t u32RegLockLevel = SYS_IsRegLocked();
     uint32_t i;
+
+    if (u32RegLockLevel)
+        SYS_UnlockReg();
 
     /* Set HSOTG PHY to the reset status */
     SYS->USBPHY = (SYS->USBPHY & ~SYS_USBPHY_HSUSBACT_Msk) | SYS_USBPHY_HSOTGPHYEN_Msk;
@@ -844,6 +848,9 @@ void SYS_Enable_HSUSB_PHY(void)
 
     /* Set HSOTG PHY to active status */
     SYS->USBPHY |= SYS_USBPHY_HSUSBACT_Msk;
+
+    if (u32RegLockLevel)
+        SYS_LockReg();
 }
 
 /**

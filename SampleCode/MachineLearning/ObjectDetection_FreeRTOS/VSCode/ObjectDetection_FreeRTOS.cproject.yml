@@ -1,6 +1,6 @@
 project:
   packs:
-    - pack: Nuvoton::NuMicro_DFP
+    - pack: Nuvoton::NuMicroM55_DFP
   setups:
     - output:
         # bin, elf, hex, lib
@@ -77,8 +77,8 @@ project:
             - -L"../../../../ThirdParty/FreeRTOS/Lib"
           Library:
             - -ltflu
-            - -lcmsis_dsp
-            - -lcmsis_nn
+            - -lCMSIS_DSP
+            - -lCMSIS_NN
             - -lomv
             - -lFreeRTOS
   linker:

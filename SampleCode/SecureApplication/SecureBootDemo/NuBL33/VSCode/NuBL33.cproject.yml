@@ -1,6 +1,6 @@
 project:
   packs:
-    - pack: Nuvoton::NuMicro_DFP
+    - pack: Nuvoton::NuMicroM55_DFP
   setups:
     - output:
         # bin, elf, hex, lib
@@ -66,9 +66,15 @@ project:
           for-compiler: AC6
         - file: ../../NuBL32/lib/libNuBL32.a
           for-compiler: GCC
+
   executes:
-    - execute: Generate signed fw image
-      run: ../../../FwSign.bat $input$ ../../FwKey/ECC-P256.pem
-      always:                     # always generate signed fw image
+    - execute: HelloPython
+      run: python -V
+      always: # always generate signed fw image
+    - execute: GenerateSignedImage
+      run: python ../../../../../../Tool/imgtool.py sign -k ../../FwKey/ECC-P256.pem --public-key-format hash --align 4 -v 1.2.3 -H 0x400 --pad-header -S 0x40000 -s 0 $input$ $output$
+      always: # always generate signed fw image
       input:
         - $bin(NuBL33)$
+      output:
+        - $OutDir()$/NuBL33_signed.bin # signed fw image binary

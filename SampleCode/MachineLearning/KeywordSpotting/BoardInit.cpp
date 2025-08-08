@@ -75,6 +75,21 @@ static void SYS_Init(void)
     CLK_EnableModuleClock(LPSRAM0_MODULE);
     SYS_ResetModule(SYS_LPPDMA0RST);
 
+    /* Enable HSOTG module clock */
+    CLK_EnableModuleClock(HSOTG0_MODULE);
+
+    /* Select HSOTG PHY Reference clock frequency which is from HXT */
+    HSOTG_SET_PHY_REF_CLK(HSOTG_PHYCTL_FSEL_24_0M);
+
+    /* Set HSUSB role to HSUSBD */
+    SET_HSUSBDROLE();
+
+    /* Enable HSUSB PHY */
+    SYS_Enable_HSUSB_PHY();
+
+    /* Enable HSUSBD peripheral clock */
+    CLK_EnableModuleClock(HSUSBD0_MODULE);
+
     /*---------------------------------------------------------------------------------------------------------*/
     /* Init I/O Multi-function                                                                                 */
     /*---------------------------------------------------------------------------------------------------------*/

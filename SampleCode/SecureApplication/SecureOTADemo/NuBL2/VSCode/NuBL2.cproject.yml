@@ -1,6 +1,6 @@
 project:
   packs:
-    - pack: Nuvoton::NuMicro_DFP
+    - pack: Nuvoton::NuMicroM55_DFP
   setups:
     - output:
         # bin, elf, hex, lib
@@ -115,10 +115,16 @@ project:
         - file: ../OTA/ota_api.c
         - file: ../OTA/ota_transfer.c
         - file: ../OTA/CommandHandler.c
+
   executes:
-  - execute: Generate_Signed_FW_Image
-    for-context: .SecureBoot
-    run: ../../../FwSign.bat $input$ ../../FwKey/ECC-P256.pem
-    always:             # always generate signed fw image
-    input: 
-      - $bin(NuBL2)$    # fw image binary
+    - execute: HelloPython
+      run: python -V
+      always: # always generate signed fw image
+    - execute: GenerateSignedImage
+      for-context: .SecureBoot
+      run: python ../../../../../../Tool/imgtool.py sign -k ../../FwKey/ECC-P256.pem --public-key-format hash --align 4 -v 1.2.3 -H 0x400 --pad-header -S 0x40000 -s 0 $input$ $output$
+      always: # always generate signed fw image
+      input:
+        - $bin(NuBL2)$
+      output:
+        - $OutDir()$/NuBL2_signed.bin # signed fw image binary

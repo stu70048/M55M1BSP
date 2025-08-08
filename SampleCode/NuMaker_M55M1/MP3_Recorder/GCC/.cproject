@@ -52,8 +52,8 @@
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../Library/Device/Nuvoton/M55M1/Include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../Library/StdDriver/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../Library/Storage&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}../&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../ThirdParty/LibMAD/inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../ThirdParty/libmad/inc&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../ThirdParty/FatFs/source&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${ProjDirPath}/../../../../ThirdParty/shine/src/lib&quot;"/>
 								</option>

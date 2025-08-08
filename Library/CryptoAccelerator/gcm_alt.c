@@ -66,17 +66,17 @@
     MBEDTLS_INTERNAL_VALIDATE( cond )
 
 
-#define START       CRPT_AES_CTL_START_Msk
-#define DMAEN       CRPT_AES_CTL_DMAEN_Msk
-#define DMALAST     CRPT_AES_CTL_DMALAST_Msk
-#define DMACC       CRPT_AES_CTL_DMACSCAD_Msk
-#define START       CRPT_AES_CTL_START_Msk
-#define FBIN        CRPT_AES_CTL_FBIN_Msk
-#define FBOUT       CRPT_AES_CTL_FBOUT_Msk
+#define START       CRYPTO_AES_CTL_START_Msk
+#define DMAEN       CRYPTO_AES_CTL_DMAEN_Msk
+#define DMALAST     CRYPTO_AES_CTL_DMALAST_Msk
+#define DMACC       CRYPTO_AES_CTL_DMACSCAD_Msk
+#define START       CRYPTO_AES_CTL_START_Msk
+#define FBIN        CRYPTO_AES_CTL_FBIN_Msk
+#define FBOUT       CRYPTO_AES_CTL_FBOUT_Msk
 
-#define GCM_MODE    (AES_MODE_GCM << CRPT_AES_CTL_OPMODE_Pos)
-#define GHASH_MODE  (AES_MODE_GHASH << CRPT_AES_CTL_OPMODE_Pos)
-#define CTR_MODE    (AES_MODE_CTR << CRPT_AES_CTL_OPMODE_Pos)
+#define GCM_MODE    (AES_MODE_GCM << CRYPTO_AES_CTL_OPMODE_Pos)
+#define GHASH_MODE  (AES_MODE_GHASH << CRYPTO_AES_CTL_OPMODE_Pos)
+#define CTR_MODE    (AES_MODE_CTR << CRYPTO_AES_CTL_OPMODE_Pos)
 
 
 /*
@@ -88,8 +88,10 @@ void mbedtls_gcm_init(mbedtls_gcm_context *ctx)
     memset(ctx, 0, sizeof(mbedtls_gcm_context));
 
     /* Reset Crypto */
-    SYS->IPRST0 |= SYS_IPRST0_CRPTRST_Msk;
-    SYS->IPRST0 ^= SYS_IPRST0_CRPTRST_Msk;
+    SYS_UnlockReg();
+    SYS->CRYPTORST |= SYS_CRYPTORST_CRYPTO0RST_Msk;
+    SYS->CRYPTORST = 0;
+    SYS_LockReg();
 
 }
 
@@ -160,17 +162,17 @@ int mbedtls_gcm_setkey(mbedtls_gcm_context *ctx,
 
     for (i = 0; i < klen / 4; i++)
     {
-        CRPT->AES_KEY[i] = au32Buf[i];
+        CRYPTO->AES_KEY[i] = au32Buf[i];
     }
 
     /* Prepare key size option */
     i = klen >> 3;
-    keySizeOpt = (((i >> 2) << 1) | (i & 1)) << CRPT_AES_CTL_KEYSZ_Pos;
+    keySizeOpt = (((i >> 2) << 1) | (i & 1)) << CRYPTO_AES_CTL_KEYSZ_Pos;
 
     /* Basic options for AES */
-    ctx->basicOpt = CRPT_AES_CTL_INSWAP_Msk |
-                    CRPT_AES_CTL_OUTSWAP_Msk |
-                    CRPT_AES_CTL_DMAEN_Msk |
+    ctx->basicOpt = CRYPTO_AES_CTL_INSWAP_Msk |
+                    CRYPTO_AES_CTL_OUTSWAP_Msk |
+                    CRYPTO_AES_CTL_DMAEN_Msk |
                     GCM_MODE |
                     keySizeOpt;
 
@@ -301,16 +303,16 @@ static int32_t AES_Run(uint32_t u32Option)
 {
     int32_t timeout = 0x1000000;
 
-    CRPT->AES_CTL = u32Option | START;
+    CRYPTO->AES_CTL = u32Option | START;
 
     /* Waiting for AES calculation */
-    while ((CRPT->INTSTS & CRPT_INTSTS_AESIF_Msk) == 0)
+    while ((CRYPTO->INTSTS & CRYPTO_INTSTS_AESIF_Msk) == 0)
     {
         if (timeout-- < 0)
             return -1;
     }
 
-    CRPT->INTSTS = CRPT_INTSTS_AESIF_Msk;
+    CRYPTO->INTSTS = CRYPTO_INTSTS_AESIF_Msk;
 
     return 0;
 }
@@ -334,20 +336,20 @@ static int32_t _GCMTag(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivl
 
     /* Prepare key size option */
     i = ctx->keySize >> 3;
-    u32OptKeySize = (((i >> 2) << 1) | (i & 1)) << CRPT_AES_CTL_KEYSZ_Pos;
+    u32OptKeySize = (((i >> 2) << 1) | (i & 1)) << CRYPTO_AES_CTL_KEYSZ_Pos;
 
     /* Basic options for AES */
-    u32OptBasic = CRPT_AES_CTL_ENCRPT_Msk | CRPT_AES_CTL_INSWAP_Msk | CRPT_AES_CTL_OUTSWAP_Msk | u32OptKeySize;
+    u32OptBasic = CRYPTO_AES_CTL_ENCRYPTO_Msk | CRYPTO_AES_CTL_INSWAP_Msk | CRYPTO_AES_CTL_OUTSWAP_Msk | u32OptKeySize;
 
     /* Set byte count of IV */
-    CRPT->AES_GCM_IVCNT[0] = ivlen;
-    CRPT->AES_GCM_IVCNT[1] = 0;
+    CRYPTO->AES_GCM_IVCNT[0] = ivlen;
+    CRYPTO->AES_GCM_IVCNT[1] = 0;
     /* Set bytes count of A */
-    CRPT->AES_GCM_ACNT[0] = alen;
-    CRPT->AES_GCM_ACNT[1] = 0;
+    CRYPTO->AES_GCM_ACNT[0] = alen;
+    CRYPTO->AES_GCM_ACNT[1] = 0;
     /* Set bytes count of P */
-    CRPT->AES_GCM_PCNT[0] = plen;
-    CRPT->AES_GCM_PCNT[1] = 0;
+    CRYPTO->AES_GCM_PCNT[0] = plen;
+    CRYPTO->AES_GCM_PCNT[1] = 0;
 
 
     // GHASH(128'align(A) || 128'align(C) || 64'bitlen(A) || 64'bitlen(C))
@@ -374,9 +376,9 @@ static int32_t _GCMTag(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivl
 
         pblock = (uint8_t *)&inputblock[0];
 
-        CRPT->AES_SADDR = (uint32_t)pblock;
-        CRPT->AES_DADDR = (uint32_t)&ghashbuf[0];
-        CRPT->AES_CNT = len;
+        CRYPTO->AES_SADDR = (uint32_t)pblock;
+        CRYPTO->AES_DADDR = (uint32_t)&ghashbuf[0];
+        CRYPTO->AES_CNT = len;
 
 
         AES_Run(u32OptBasic | GHASH_MODE | DMAEN /*| DMALAST*/);
@@ -388,8 +390,11 @@ static int32_t _GCMTag(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivl
         /* Calculate GHASH block by block, DMA casecade mode */
 
         /* feedback buffer is necessary for casecade mode */
-        CRPT->AES_FBADDR = (uint32_t)ctx->fb_buf;
+        CRYPTO->AES_FBADDR = (uint32_t)ctx->fb_buf;
         memset(ctx->fb_buf, 0, sizeof(ctx->fb_buf));
+#if (NVT_DCACHE_ON == 1)
+        SCB_CleanDCache_by_Addr(ctx->fb_buf, sizeof(ctx->fb_buf));
+#endif
 
         /* inital DMA for GHASH casecade */
         if (alen)
@@ -397,10 +402,12 @@ static int32_t _GCMTag(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivl
             /* Prepare the blocked buffer for GCM */
             AES_GCMPacker(0, 0, A, alen, 0, 0, ctx->gcm_buf, (uint32_t *)&len);
 
-            CRPT->AES_SADDR = (uint32_t)ctx->gcm_buf;
-            CRPT->AES_DADDR = (uint32_t)&ghashbuf[0];
-            CRPT->AES_CNT = len;
-
+            CRYPTO->AES_SADDR = (uint32_t)ctx->gcm_buf;
+            CRYPTO->AES_DADDR = (uint32_t)&ghashbuf[0];
+            CRYPTO->AES_CNT = len;
+#if (NVT_DCACHE_ON == 1)
+            SCB_CleanDCache_by_Addr(ctx->gcm_buf, sizeof(ctx->gcm_buf));
+#endif
             AES_Run(u32OptBasic | GHASH_MODE | FBOUT | DMAEN);
         }
 
@@ -425,9 +432,9 @@ static int32_t _GCMTag(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivl
                 /* Sill has data for next block, it means current block size is full size */
 
                 /* len should be alway 16 bytes alignment in here */
-                CRPT->AES_SADDR = (uint32_t)pin;
-                CRPT->AES_DADDR = (uint32_t)pout;
-                CRPT->AES_CNT = len;
+                CRYPTO->AES_SADDR = (uint32_t)pin;
+                CRYPTO->AES_DADDR = (uint32_t)pout;
+                CRYPTO->AES_CNT = len;
 
                 AES_Run(u32OptBasic | GHASH_MODE | FBIN | FBOUT | DMAEN | DMACC);
             }
@@ -462,9 +469,9 @@ static int32_t _GCMTag(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivl
                 /* adding the length of 64'bitlen(A) and 64'bitlen(C) */
                 len += 16;
 
-                CRPT->AES_SADDR = (uint32_t)pin;
-                CRPT->AES_DADDR = (uint32_t)pout;
-                CRPT->AES_CNT = len;
+                CRYPTO->AES_SADDR = (uint32_t)pin;
+                CRYPTO->AES_DADDR = (uint32_t)pout;
+                CRYPTO->AES_CNT = len;
 
                 AES_Run(u32OptBasic | GHASH_MODE | FBIN | FBOUT | DMAEN | DMACC | DMALAST);
 
@@ -488,9 +495,12 @@ static int32_t _GCMTag(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivl
         piv = (uint8_t *)&u32ivbuf[0];
         AES_GCMPacker(iv, ivlen, 0, 0, 0, 0, ctx->gcm_buf, (uint32_t *)&len);
 
-        CRPT->AES_SADDR = (uint32_t)ctx->gcm_buf;
-        CRPT->AES_DADDR = (uint32_t)piv;
-        CRPT->AES_CNT = len;
+        CRYPTO->AES_SADDR = (uint32_t)ctx->gcm_buf;
+        CRYPTO->AES_DADDR = (uint32_t)piv;
+        CRYPTO->AES_CNT = len;
+#if (NVT_DCACHE_ON == 1)
+        SCB_CleanDCache_by_Addr(ctx->gcm_buf, sizeof(ctx->gcm_buf));
+#endif
 
         if ((ret = AES_Run(u32OptBasic | GHASH_MODE | DMAEN/* | DMALAST*/)))
         {
@@ -500,8 +510,8 @@ static int32_t _GCMTag(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivl
         /* SET CTR IV */
         for (i = 0; i < 4; i++)
         {
-            CRPT->AES_IV[i] = (piv[i * 4 + 0] << 24) | (piv[i * 4 + 1] << 16) |
-                              (piv[i * 4 + 2] << 8) | piv[i * 4 + 3];
+            CRYPTO->AES_IV[i] = (piv[i * 4 + 0] << 24) | (piv[i * 4 + 1] << 16) |
+                                (piv[i * 4 + 2] << 8) | piv[i * 4 + 3];
         }
     }
     else
@@ -511,16 +521,16 @@ static int32_t _GCMTag(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivl
         /* SET CTR IV */
         for (i = 0; i < 3; i++)
         {
-            CRPT->AES_IV[i] = (iv[i * 4 + 0] << 24) | (iv[i * 4 + 1] << 16) |
-                              (iv[i * 4 + 2] << 8) | iv[i * 4 + 3];
+            CRYPTO->AES_IV[i] = (iv[i * 4 + 0] << 24) | (iv[i * 4 + 1] << 16) |
+                                (iv[i * 4 + 2] << 8) | iv[i * 4 + 3];
         }
 
-        CRPT->AES_IV[3] = 0x00000001;
+        CRYPTO->AES_IV[3] = 0x00000001;
     }
 
-    CRPT->AES_SADDR = (uint32_t)&ghashbuf[0];
-    CRPT->AES_DADDR = (uint32_t)&tag[0];
-    CRPT->AES_CNT = 16;
+    CRYPTO->AES_SADDR = (uint32_t)&ghashbuf[0];
+    CRYPTO->AES_DADDR = (uint32_t)&tag[0];
+    CRYPTO->AES_CNT = 16;
 
     ret = AES_Run(u32OptBasic | CTR_MODE | DMAEN /*| DMALAST*/);
 
@@ -544,30 +554,33 @@ static int32_t _GCM(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivlen,
 
     for (i = 0; i < 8; i++)
     {
-        key[i] = CRPT->AES_KEY[i];
+        key[i] = CRYPTO->AES_KEY[i];
     }
 
-    SYS->IPRST0 = SYS_IPRST0_CRPTRST_Msk;
-    SYS->IPRST0 = 0;
+    /* Reset Crypto */
+    SYS_UnlockReg();
+    SYS->CRYPTORST |= SYS_CRYPTORST_CRYPTO0RST_Msk;
+    SYS->CRYPTORST = 0;
+    SYS_LockReg();
 
     for (i = 0; i < 8; i++)
     {
-        CRPT->AES_KEY[i] = key[i];
+        CRYPTO->AES_KEY[i] = key[i];
     }
 
     u32OptBasic = ctx->basicOpt;
 
     /* Set byte count of IV */
-    CRPT->AES_GCM_IVCNT[0] = ivlen;
-    CRPT->AES_GCM_IVCNT[1] = 0;
+    CRYPTO->AES_GCM_IVCNT[0] = ivlen;
+    CRYPTO->AES_GCM_IVCNT[1] = 0;
 
     /* Set bytes count of A */
-    CRPT->AES_GCM_ACNT[0] = alen;
-    CRPT->AES_GCM_ACNT[1] = 0;
+    CRYPTO->AES_GCM_ACNT[0] = alen;
+    CRYPTO->AES_GCM_ACNT[1] = 0;
 
     /* Set bytes count of P */
-    CRPT->AES_GCM_PCNT[0] = plen;
-    CRPT->AES_GCM_PCNT[1] = 0;
+    CRYPTO->AES_GCM_PCNT[0] = plen;
+    CRYPTO->AES_GCM_PCNT[1] = 0;
 
     plen_aligned = (plen & 0xful) ? ((plen + 16) / 16) * 16 : plen;
 
@@ -578,12 +591,17 @@ static int32_t _GCM(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivlen,
         /* Prepare the blocked buffer for GCM */
         AES_GCMPacker(iv, ivlen, A, alen, P, plen, ctx->gcm_buf, &size);
 
-        CRPT->AES_SADDR = (uint32_t)ctx->gcm_buf;
-        CRPT->AES_DADDR = (uint32_t)ctx->out_buf;
-        CRPT->AES_CNT = size;
-
+        CRYPTO->AES_SADDR = (uint32_t)ctx->gcm_buf;
+        CRYPTO->AES_DADDR = (uint32_t)ctx->out_buf;
+        CRYPTO->AES_CNT = size;
+#if (NVT_DCACHE_ON == 1)
+        SCB_CleanDCache_by_Addr(ctx->gcm_buf, sizeof(ctx->gcm_buf));
+#endif
         ret = AES_Run(u32OptBasic | GCM_MODE | DMAEN);
 
+#if (NVT_DCACHE_ON == 1)
+        SCB_InvalidateDCache_by_Addr(ctx->out_buf, sizeof(ctx->out_buf));
+#endif
         memcpy(buf, ctx->out_buf, plen);
         memcpy(tag, ctx->out_buf + plen_aligned, tag_len);
 
@@ -598,13 +616,16 @@ static int32_t _GCM(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivlen,
         /* Prepare the blocked buffer for GCM */
         AES_GCMPacker(iv, ivlen, A, alen, 0, 0, ctx->gcm_buf, &size);
 
-        CRPT->AES_SADDR = (uint32_t)ctx->gcm_buf;
-        CRPT->AES_DADDR = (uint32_t)ctx->out_buf;
-        CRPT->AES_CNT = size;
+        CRYPTO->AES_SADDR = (uint32_t)ctx->gcm_buf;
+        CRYPTO->AES_DADDR = (uint32_t)ctx->out_buf;
+        CRYPTO->AES_CNT = size;
 
         /* feedback buffer is necessary for casecade mode */
-        CRPT->AES_FBADDR = (uint32_t)ctx->fb_buf;
-
+        CRYPTO->AES_FBADDR = (uint32_t)ctx->fb_buf;
+#if (NVT_DCACHE_ON == 1)
+        SCB_CleanDCache_by_Addr(ctx->gcm_buf, sizeof(ctx->gcm_buf));
+        SCB_CleanDCache_by_Addr(ctx->fb_buf, sizeof(ctx->fb_buf));
+#endif
         AES_Run(u32OptBasic | GCM_MODE | FBOUT | DMAEN);
 
         /* Start to encrypt P data */
@@ -637,10 +658,13 @@ static int32_t _GCM(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivlen,
                 len_aligned = len;
             }
 
-            CRPT->AES_SADDR = (uint32_t)ctx->gcm_buf;
-            CRPT->AES_DADDR = (uint32_t)ctx->out_buf;
-            CRPT->AES_CNT = len_aligned;
+            CRYPTO->AES_SADDR = (uint32_t)ctx->gcm_buf;
+            CRYPTO->AES_DADDR = (uint32_t)ctx->out_buf;
+            CRYPTO->AES_CNT = len_aligned;
 
+#if (NVT_DCACHE_ON == 1)
+            SCB_CleanDCache_by_Addr(ctx->gcm_buf, sizeof(ctx->gcm_buf));
+#endif
 
             if (plen_cur)
             {
@@ -658,6 +682,9 @@ static int32_t _GCM(mbedtls_gcm_context *ctx, const uint8_t *iv, uint32_t ivlen,
                 return ret;
             }
 
+#if (NVT_DCACHE_ON == 1)
+            SCB_InvalidateDCache_by_Addr(ctx->out_buf, sizeof(ctx->out_buf));
+#endif
             memcpy(pout, ctx->out_buf, len);
 
             pin += len;
@@ -695,13 +722,13 @@ int mbedtls_gcm_starts(mbedtls_gcm_context *ctx,
     size_t *pSz;
 
 
-    AES_ENABLE_INT(CRPT);
+    AES_ENABLE_INT(CRYPTO);
 
     if (mode == MBEDTLS_GCM_ENCRYPT)
-        ctx->basicOpt |= CRPT_AES_CTL_ENCRPT_Msk;
+        ctx->basicOpt |= CRYPTO_AES_CTL_ENCRYPTO_Msk;
 
     /* Set byte count of IV */
-    pSz = (size_t *)CRPT->AES_GCM_IVCNT;
+    pSz = (size_t *)CRYPTO->AES_GCM_IVCNT;
     *pSz = iv_len;
 
     AES_GCMPacker(iv, iv_len, 0, 0, 0, 0, ctx->gcm_buf, &size);
@@ -736,21 +763,26 @@ int mbedtls_gcm_update_ad(mbedtls_gcm_context *ctx,
     int32_t ret;
 
     /* Set bytes count of A */
-    pSz = (size_t *)CRPT->AES_GCM_ACNT;
+    pSz = (size_t *)CRYPTO->AES_GCM_ACNT;
     *pSz = add_len;
 
     AES_GCMPacker(0, 0, add, add_len, 0, 0, ctx->gcm_buf + ctx->gcm_buf_bytes, &size);
     ctx->gcm_buf_bytes += size;
 
     /* Configure DMA */
-    CRPT->AES_SADDR = (uint32_t)ctx->gcm_buf;
-    CRPT->AES_DADDR = (uint32_t)ctx->out_buf;
-    CRPT->AES_FBADDR = (uint32_t)ctx->fb_buf;
-    CRPT->AES_CNT   = ctx->gcm_buf_bytes;
+    CRYPTO->AES_SADDR = (uint32_t)ctx->gcm_buf;
+    CRYPTO->AES_DADDR = (uint32_t)ctx->out_buf;
+    CRYPTO->AES_FBADDR = (uint32_t)ctx->fb_buf;
+    CRYPTO->AES_CNT   = ctx->gcm_buf_bytes;
+
+#if (NVT_DCACHE_ON == 1)
+    SCB_CleanDCache_by_Addr(ctx->gcm_buf, sizeof(ctx->gcm_buf));
+    SCB_CleanDCache_by_Addr(ctx->fb_buf, sizeof(ctx->fb_buf));
+#endif
 
     /* Set a big number for unknown P length */
-    CRPT->AES_GCM_PCNT[0] = (uint32_t) -1;
-    CRPT->AES_GCM_PCNT[1] = 0;
+    CRYPTO->AES_GCM_PCNT[0] = (uint32_t) -1;
+    CRYPTO->AES_GCM_PCNT[1] = 0;
 
     /* Start with cascade mode */
     if ((ret = AES_Run(ctx->basicOpt | FBOUT | DMACC)))
@@ -799,8 +831,8 @@ int mbedtls_gcm_update(mbedtls_gcm_context *ctx,
 
     if (len == 0)
     {
-        CRPT->AES_GCM_PCNT[0] = ctx->len;
-        CRPT->AES_CNT = ctx->gcm_buf_bytes;
+        CRYPTO->AES_GCM_PCNT[0] = ctx->len;
+        CRYPTO->AES_CNT = ctx->gcm_buf_bytes;
 
         if (ctx->firstFlag == 1)
         {
@@ -808,6 +840,7 @@ int mbedtls_gcm_update(mbedtls_gcm_context *ctx,
             AES_Run(ctx->basicOpt);
             ctx->gcm_buf_bytes = 0;
 
+            *output_length = len;//[2025-04-30]
             /* The tag should be in out_buf if P len is 0 */
             memcpy(ctx->tag, ctx->out_buf, 16);
             ctx->endFlag = 1;
@@ -818,7 +851,7 @@ int mbedtls_gcm_update(mbedtls_gcm_context *ctx,
         {
             /* zero block, it should be end of gcm. Restore feedback buffer and do GCM again with last cascade */
             memcpy(ctx->fb_buf, ctx->fb_buf2, 72);
-            CRPT->AES_GCM_PCNT[0] = ctx->len;
+            CRYPTO->AES_GCM_PCNT[0] = ctx->len;
 
             if ((ret = AES_Run(ctx->basicOpt | FBIN | FBOUT | DMACC | DMALAST)))
             {
@@ -855,8 +888,8 @@ int mbedtls_gcm_update(mbedtls_gcm_context *ctx,
         {
 
             /* No 16 bytes alignment, it should be last */
-            CRPT->AES_GCM_PCNT[0] = ctx->len;
-            CRPT->AES_CNT = u32Size;
+            CRYPTO->AES_GCM_PCNT[0] = ctx->len;
+            CRYPTO->AES_CNT = u32Size;
 
             if ((ret = AES_Run(ctx->basicOpt | FBIN | FBOUT | DMACC | DMALAST)))
             {
@@ -869,7 +902,7 @@ int mbedtls_gcm_update(mbedtls_gcm_context *ctx,
         {
             /* backup feedback buffer. If this is last block, we could back feedback buffer to do it again. */
             memcpy(ctx->fb_buf2, ctx->fb_buf, 72);
-            CRPT->AES_CNT = u32Size;
+            CRYPTO->AES_CNT = u32Size;
             ctx->gcm_buf_bytes = u32Size;
 
             if ((ret = AES_Run(ctx->basicOpt | FBIN | FBOUT | DMACC)))
@@ -908,7 +941,7 @@ int mbedtls_gcm_finish(mbedtls_gcm_context *ctx,
     if (ctx->endFlag == 0)
     {
         /* end the gcm */
-        CRPT->AES_GCM_PCNT[0] = ctx->len;
+        CRYPTO->AES_GCM_PCNT[0] = ctx->len;
         memcpy(ctx->fb_buf, ctx->fb_buf2, 72);
 
         if ((ret = AES_Run(ctx->basicOpt | FBIN | FBOUT | DMACC | DMALAST)))
@@ -961,11 +994,11 @@ int mbedtls_gcm_crypt_and_tag(mbedtls_gcm_context *ctx,
 
     if (mode)
     {
-        ctx->basicOpt |= CRPT_AES_CTL_ENCRPT_Msk;
+        ctx->basicOpt |= CRYPTO_AES_CTL_ENCRYPTO_Msk;
     }
     else
     {
-        ctx->basicOpt &= ~CRPT_AES_CTL_ENCRPT_Msk;
+        ctx->basicOpt &= ~CRYPTO_AES_CTL_ENCRYPTO_Msk;
     }
 
 

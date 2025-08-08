@@ -309,7 +309,7 @@ enum pd_rx_errors
 #define PD_T_SRC_PPS_TIMEROUT      (12500*MSEC)             /* 12s ~ 15s */
 
 #if (CONFIG_M55M1_FRS == 1)
-    #define PD_T_FRS_START_DELAY            (500*MSEC)  /* M55 workaround solution for FRS detection */
+    #define PD_T_FRS_START_DELAY            (500*MSEC)
 #endif
 
 

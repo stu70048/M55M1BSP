@@ -108,9 +108,12 @@ _ISP:
     {
         if (bSpiDataReady == 1)
         {
+            /* Disable SPI IRQ until ParseCmd() is finished to prevent returning incomplete data prematurely */
+            NVIC_DisableIRQ(SPI2_IRQn);
             memcpy(au32CmdBuff, spi_rcvbuf, 64);
             bSpiDataReady = 0;
             ParseCmd((unsigned char *)au32CmdBuff, 64);
+            NVIC_EnableIRQ(SPI2_IRQn);
         }
     }
 

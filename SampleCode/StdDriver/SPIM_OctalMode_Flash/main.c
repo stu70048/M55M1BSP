@@ -13,7 +13,7 @@
 //------------------------------------------------------------------------------
 #define SPIM_PORT                   SPIM0
 #define SPIM_PORT_DIV               (1)
-#define TRIM_PAT_SIZE               32
+#define TRIM_PAT_SIZE               128
 
 #define FLASH_BLOCK_SIZE            (8 * 1024)     /* Flash block size. Depend on the physical flash. */
 #define TEST_BLOCK_ADDR             0x10000        /* Test block address on SPI flash. */
@@ -46,7 +46,12 @@ extern SPIM_PHASE_T gsMt8BhRdDDRCMD;
 //------------------------------------------------------------------------------
 void SYS_Init(void)
 {
-    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST0;
+    /*
+         Set I/O slew rate to FAST1 (100 MHz).
+         Use FAST1 if targeting 1.8V devices for better timing margin.
+         Adjust if signal issues or EMI are observed.
+     */
+    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST1;
 
     /* Enable Internal RC 12MHz clock */
     CLK_EnableXtalRC(CLK_SRCCTL_HIRCEN_Msk);
@@ -54,8 +59,13 @@ void SYS_Init(void)
     /* Waiting for Internal RC clock ready */
     CLK_WaitClockReady(CLK_STATUS_HIRCSTB_Msk);
 
-    /* Enable PLL0 clock */
-    CLK_EnableAPLL(CLK_APLLCTL_APLLSRC_HIRC, FREQ_220MHZ, CLK_APLL0_SELECT);
+    /*
+      Enable PLL0 clock.
+      200 MHz is recommended for stable Octal SPI Flash operation.
+      Users may manually change to 220 MHz for higher performance,
+      but stability is not guaranteed at that frequency.
+    */
+    CLK_EnableAPLL(CLK_APLLCTL_APLLSRC_HIRC, FREQ_200MHZ, CLK_APLL0_SELECT);
 
     /* Switch SCLK clock source to PLL0 and divide 1 */
     CLK_SetSCLK(CLK_SCLKSEL_SCLKSEL_APLL0);
@@ -76,7 +86,6 @@ void SYS_Init(void)
 
     /* Enable SPIM module clock */
     CLK_EnableModuleClock(SPIM0_MODULE);
-    CLK_EnableModuleClock(OTFC0_MODULE);
 
     /* Enable GPIO Module clock */
     CLK_EnableModuleClock(GPIOG_MODULE);
@@ -138,77 +147,6 @@ void SYS_Init(void)
     GPIO_SetSlewCtl(PJ, BIT7, u32SlewRate);
 }
 
-void OctalFlash_SetConfigRegDiv(SPIM_T *spim, uint32_t u32Restore)
-{
-    static uint32_t u32Div;
-    static uint32_t u32RxClkDly;
-
-    if (u32Restore == SPIM_OP_DISABLE)
-    {
-        u32Div = SPIM_GET_CLOCK_DIVIDER(spim);
-        u32RxClkDly = SPIM_GET_RXCLKDLY_RDDLYSEL(spim);
-
-        SPIM_SET_CLOCK_DIVIDER(spim, 16);
-        SPIM_SET_RXCLKDLY_RDDLYSEL(spim, 0);
-    }
-    else
-    {
-        SPIM_SET_CLOCK_DIVIDER(spim, u32Div);
-        SPIM_SET_RXCLKDLY_RDDLYSEL(spim, u32RxClkDly);
-    }
-}
-
-void OctalFlash_EnterDDRMode(SPIM_T *spim)
-{
-    uint8_t u8CMDBuf[1] = {0xE7};
-    SPIM_PHASE_T sWrNVCRegCMD =
-    {
-        OPCODE_WR_VCONFIG,                                                          //Command Code
-        PHASE_NORMAL_MODE, PHASE_WIDTH_8, PHASE_DISABLE_DTR,                        //Command Phase
-        PHASE_NORMAL_MODE, PHASE_WIDTH_32, PHASE_DISABLE_DTR,                       //Address Phase
-        PHASE_NORMAL_MODE, PHASE_ORDER_MODE0, PHASE_DISABLE_DTR, SPIM_OP_DISABLE,   //Data Phase
-        0,
-    };
-
-    OctalFlash_SetConfigRegDiv(spim, SPIM_OP_DISABLE);
-
-    /* Enable 4-byte address mode */
-    SPIM_Enable_4Bytes_Mode(spim, SPIM_OP_ENABLE, SPIM_BITMODE_1);
-    SPIM_SET_4BYTE_ADDR(spim, SPIM_OP_ENABLE);
-
-    /* Set non-volatile register enter octal DDR mode */
-    SPIM_IO_WriteByPhase(spim, &sWrNVCRegCMD, 0x00, u8CMDBuf, sizeof(u8CMDBuf), SPIM_OP_DISABLE);
-
-    OctalFlash_SetConfigRegDiv(spim, SPIM_OP_ENABLE);
-
-    SPIM_SET_DTR_MODE(spim, SPIM_OP_ENABLE);
-}
-
-void OctalFlash_ExitDDRMode(SPIM_T *spim)
-{
-    uint8_t u8CMDBuf[1] = {0xFF};
-    SPIM_PHASE_T sWrNVCRegCMD =
-    {
-        OPCODE_WR_VCONFIG,                                                      //Command Code
-        PHASE_OCTAL_MODE, PHASE_WIDTH_8, PHASE_ENABLE_DTR,                      //Command Phase
-        PHASE_OCTAL_MODE, PHASE_WIDTH_32, PHASE_ENABLE_DTR,                     //Address Phase
-        PHASE_OCTAL_MODE, PHASE_ORDER_MODE0, PHASE_ENABLE_DTR, SPIM_OP_ENABLE,  //Data Phase
-        0,
-    };
-
-    OctalFlash_SetConfigRegDiv(spim, SPIM_OP_DISABLE);
-
-    /* Set non-volatile register exit octal DDR mode */
-    SPIM_IO_WriteByPhase(spim, &sWrNVCRegCMD, 0x00, u8CMDBuf, sizeof(u8CMDBuf), SPIM_OP_DISABLE);
-
-    SPIM_SET_DTR_MODE(spim, SPIM_OP_DISABLE);
-
-    /* Disable 4-byte Address mode */
-    SPIM_Enable_4Bytes_Mode(spim, SPIM_OP_DISABLE, SPIM_BITMODE_1);
-
-    OctalFlash_SetConfigRegDiv(spim, SPIM_OP_ENABLE);
-}
-
 /**
  * @brief Check if the given array of values is consecutive.
  *
@@ -254,11 +192,6 @@ static uint8_t isConsecutive(uint8_t au8Src[], uint32_t size)
 
 void SPIM_TrimDLLDelayNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pMTRdCMD)
 {
-    if (spim == NULL)
-    {
-        return;
-    }
-
     uint8_t u8RdDelay = 0;
     uint8_t u8RdDelayRes[SPIM_MAX_DLL_LATENCY] = {0};
     uint32_t u32PatternSize = TRIM_PAT_SIZE;
@@ -271,6 +204,10 @@ void SPIM_TrimDLLDelayNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
     uint32_t u32ReTrimCnt = 0;
     uint32_t u32SrcAddr = OCFLH_TRIM_ADDR;
     uint32_t u32Div = SPIM_GET_CLOCK_DIVIDER(spim); // Divider value
+    /*
+        SPIM DMA requires memory buffers to be 8-byte aligned.
+        TRIM_PAT_SIZE is in bytes and must be divisible by 8.
+    */
     uint64_t au64TrimPattern[(TRIM_PAT_SIZE * 2) / 8] = {0};
     uint64_t au64VerifyBuf[TRIM_PAT_SIZE / 8] = {0};
     uint8_t *pu8TrimPattern = (uint8_t *)au64TrimPattern;
@@ -291,9 +228,7 @@ void SPIM_TrimDLLDelayNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
         pu8TrimPattern[u32k] = ~(uint8_t)(u32Val ^ (u32k << 3) ^ (u32k >> 2));
     }
 
-    OctalFlash_EnterDDRMode(spim);
-
-    OctalFlash_SetConfigRegDiv(spim, SPIM_OP_DISABLE);
+    SPIM_EnterOPIMode_MICRON(spim);
 
     SPIM_EraseBlock(spim,
                     u32SrcAddr,
@@ -308,8 +243,6 @@ void SPIM_TrimDLLDelayNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
                    sizeof(au64TrimPattern),
                    pu8TrimPattern,
                    pMTWrCMD->u32CMDCode);
-
-    OctalFlash_SetConfigRegDiv(spim, SPIM_OP_ENABLE);
 
     memcpy((uint8_t *)&sMTRdCMDTmp, (uint8_t *)pMTRdCMD, sizeof(SPIM_PHASE_T));
 
@@ -379,8 +312,8 @@ void SPIM_TrimDLLDelayNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
                                             1);
 
                     /* Read 8 bytes of data from the HyperRAM */
-                    *(volatile uint32_t *)&pu8VerifyBuf[u32k] = *(volatile uint32_t *)(u32DMMAddr + u32SrcAddr + u32LoopAddr);
-                    *(volatile uint32_t *)&pu8VerifyBuf[u32k + 4] = *(volatile uint32_t *)(u32DMMAddr + u32SrcAddr + u32LoopAddr + 4);
+                    *(volatile uint64_t *)&pu8VerifyBuf[u32k] = *(volatile uint64_t *)(u32DMMAddr + u32SrcAddr + u32LoopAddr);
+                    //*(volatile uint32_t *)&pu8VerifyBuf[u32k + 4] = *(volatile uint32_t *)(u32DMMAddr + u32SrcAddr + u32LoopAddr + 4);
                 }
 
                 if ((u32i = memcmp(&pu8TrimPattern[u32LoopAddr], &pu8VerifyBuf[u32k], 0x08)) != 0)
@@ -401,13 +334,13 @@ void SPIM_TrimDLLDelayNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
     SPIM_DMADMM_InitPhase(spim, pMTRdCMD, SPIM_CTL0_OPMODE_PAGEREAD);
     SPIM_DMADMM_InitPhase(spim, pMTRdCMD, SPIM_CTL0_OPMODE_DIRECTMAP);
 
-    OctalFlash_ExitDDRMode(spim);
+    SPIM_ExitOPIMode_MICRON(spim);
 
     u32j = 0;
 
     for (u32i = 0; u32i < SPIM_MAX_RX_DLY_NUM; u32i++)
     {
-        if (u8RdDelayRes[u32i] == u32ReTrimMaxCnt)
+        if (u8RdDelayRes[u32i] >= u32ReTrimMaxCnt)
         {
             u8RdDelayRes[u32j++] = u32i;
         }
@@ -431,11 +364,6 @@ void SPIM_TrimDLLDelayNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
  */
 void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pMTRdCMD)
 {
-    if (spim == NULL)
-    {
-        return;
-    }
-
     uint8_t u8RdDelay = 0;
     uint8_t u8RdDelayRes[SPIM_MAX_DLL_LATENCY] = {0};
     uint32_t u32PatternSize = TRIM_PAT_SIZE;
@@ -448,6 +376,10 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
     uint32_t u32ReTrimCnt = 0;
     uint32_t u32SrcAddr = OCFLH_TRIM_ADDR;
     uint32_t u32Div = SPIM_GET_CLOCK_DIVIDER(spim); // Divider value
+    /*
+        SPIM DMA requires memory buffers to be 8-byte aligned.
+        TRIM_PAT_SIZE is in bytes and must be divisible by 8.
+    */
     uint64_t au64TrimPattern[(TRIM_PAT_SIZE * 2) / 8] = {0};
     uint64_t au64VerifyBuf[TRIM_PAT_SIZE / 8] = {0};
     uint8_t *pu8TrimPattern = (uint8_t *)au64TrimPattern;
@@ -467,8 +399,6 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
         pu8TrimPattern[u32k] = ~(uint8_t)(u32Val ^ (u32k << 3) ^ (u32k >> 2));
     }
 
-    OctalFlash_SetConfigRegDiv(spim, SPIM_OP_DISABLE);
-
     SPIM_EraseBlock(spim,
                     u32SrcAddr,
                     (pMTWrCMD->u32AddrWidth == PHASE_WIDTH_32) ? SPIM_OP_ENABLE : SPIM_OP_DISABLE,
@@ -482,8 +412,6 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
                    sizeof(au64TrimPattern),
                    pu8TrimPattern,
                    pMTWrCMD->u32CMDCode);
-
-    OctalFlash_SetConfigRegDiv(spim, SPIM_OP_ENABLE);
 
     SPIM_DMADMM_InitPhase(spim, pMTRdCMD, SPIM_CTL0_OPMODE_PAGEREAD);
     SPIM_DMADMM_InitPhase(spim, pMTRdCMD, SPIM_CTL0_OPMODE_DIRECTMAP);
@@ -535,9 +463,7 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
                                             1);
 
                     /* Read 8 bytes of data from the HyperRAM */
-                    //*(volatile uint64_t *)&pu8VerifyBuf[u32k] = *(volatile uint64_t *)(u32DMMAddr + u32SrcAddr + u32LoopAddr);
-                    *(volatile uint32_t *)&pu8VerifyBuf[u32k] = *(volatile uint32_t *)(u32DMMAddr + u32SrcAddr + u32LoopAddr);
-                    *(volatile uint32_t *)&pu8VerifyBuf[u32k + 4] = *(volatile uint32_t *)(u32DMMAddr + u32SrcAddr + u32LoopAddr + 4);
+                    *(volatile uint64_t *)&pu8VerifyBuf[u32k] = *(volatile uint64_t *)(u32DMMAddr + u32SrcAddr + u32LoopAddr);
                 }
 
                 if ((u32i = memcmp(&pu8TrimPattern[u32LoopAddr], &pu8VerifyBuf[u32k], 0x08)) != 0)
@@ -556,7 +482,7 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *pMTWrCMD, SPIM_PHASE_T *pM
 
     for (u32i = 0; u32i < SPIM_MAX_RX_DLY_NUM; u32i++)
     {
-        if (u8RdDelayRes[u32i] == u32ReTrimMaxCnt)
+        if (u8RdDelayRes[u32i] >= u32ReTrimMaxCnt)
         {
             u8RdDelayRes[u32j++] = u32i;
         }
@@ -700,8 +626,6 @@ int main()
      */
     SPIM_SET_CLOCK_DIVIDER(SPIM_PORT, SPIM_PORT_DIV);
 
-    OctalFlash_ExitDDRMode(SPIM_PORT);
-
     if (SPIM_InitFlash(SPIM_PORT, SPIM_OP_ENABLE) != SPIM_OK)          /* Initialized SPI flash */
     {
         printf("SPIM flash initialize failed!\n");
@@ -748,42 +672,6 @@ int main()
 
     printf("[OK].\n");
 
-    printf("\n[Fast Read Output] 3-bytes address mode, Fast Read Octal DDR command...\r\n");
-
-    SPIM_DMADMM_InitPhase(SPIM_PORT, &gsMt9DhRdCMD, SPIM_CTL0_OPMODE_PAGEREAD);
-    SPIM_DMADMM_InitPhase(SPIM_PORT, &gsMtC2hWrCMD, SPIM_CTL0_OPMODE_PAGEWRITE);
-
-    /* Trim delay cycle. Adjust the sampling clock of received data to latch the correct data. */
-    SPIM_TrimDLLDelayNum(SPIM_PORT, &gsMtC2hWrCMD, &gsMt9DhRdCMD);
-
-    u32Is4ByteAddr = (gsMt9DhRdCMD.u32AddrWidth == PHASE_WIDTH_32) ? SPIM_OP_ENABLE : SPIM_OP_DISABLE;
-
-    if (dma_read_write(u32Is4ByteAddr, gsMt9DhRdCMD.u32CMDCode, gsMtC2hWrCMD.u32CMDCode, SPIM_OP_DISABLE) != SPIM_OK)
-    {
-        printf("  FAILED!!\n");
-        goto lexit;
-    }
-
-    printf("[OK].\n");
-
-    printf("\n[Fast IO Read] 4-bytes address mode, Fast Read Octal DDR command...\r\n");
-
-    SPIM_DMADMM_InitPhase(SPIM_PORT, &gsMtFDhRdCMD, SPIM_CTL0_OPMODE_PAGEREAD);
-    SPIM_DMADMM_InitPhase(SPIM_PORT, &gsMt8EhWrCMD, SPIM_CTL0_OPMODE_PAGEWRITE);
-
-    /* Trim delay cycle. Adjust the sampling clock of received data to latch the correct data. */
-    SPIM_TrimDLLDelayNum(SPIM_PORT, &gsMt8EhWrCMD, &gsMtFDhRdCMD);
-
-    u32Is4ByteAddr = (gsMtFDhRdCMD.u32AddrWidth == PHASE_WIDTH_32) ? SPIM_OP_ENABLE : SPIM_OP_DISABLE;
-
-    if (dma_read_write(u32Is4ByteAddr, gsMtFDhRdCMD.u32CMDCode, gsMt8EhWrCMD.u32CMDCode, SPIM_OP_DISABLE) != SPIM_OK)
-    {
-        printf("  FAILED!!\n");
-        goto lexit;
-    }
-
-    printf("[OK].\n");
-
     printf("\n[Fast Read Output DDR Mode] 4-bytes address mode, Fast Read Octal DDR command...\r\n");
 
     SPIM_DMADMM_InitPhase(SPIM_PORT, &gsMt8BhRdDDRCMD, SPIM_CTL0_OPMODE_PAGEREAD);
@@ -794,7 +682,7 @@ int main()
 
     u32Is4ByteAddr = (gsMt8BhRdDDRCMD.u32AddrWidth == PHASE_WIDTH_32) ? SPIM_OP_ENABLE : SPIM_OP_DISABLE;
 
-    OctalFlash_EnterDDRMode(SPIM_PORT); /* Enable Octal Flash DDR Mode */
+    SPIM_EnterOPIMode_MICRON(SPIM_PORT); /* Enable Octal Flash DDR Mode */
 
     if (dma_read_write(u32Is4ByteAddr, gsMt8BhRdDDRCMD.u32CMDCode, gsMt02hWrDDRCMD.u32CMDCode, SPIM_OP_ENABLE) != SPIM_OK)
     {
@@ -802,7 +690,7 @@ int main()
         goto lexit;
     }
 
-    OctalFlash_ExitDDRMode(SPIM_PORT);  /* Disable Octal Flash DDR Mode */
+    SPIM_ExitOPIMode_MICRON(SPIM_PORT);  /* Disable Octal Flash DDR Mode */
 
     printf("[OK].\n");
 

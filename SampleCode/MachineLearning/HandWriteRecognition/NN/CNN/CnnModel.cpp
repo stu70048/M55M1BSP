@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-#include "CNNModel.h"
+#include "CnnModel.h"
 #include "BufAttributes.h"
 #include "board_m55m1.h"
 #ifdef CNN

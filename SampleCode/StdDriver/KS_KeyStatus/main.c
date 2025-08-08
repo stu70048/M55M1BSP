@@ -53,9 +53,9 @@ int main(void)
     /* Init Debug UART for print message */
     InitDebugUart();
 
-    printf("+------------------------------------------+\n");
-    printf("|      M55M1 KS Key Status Sample Code     |\n");
-    printf("+------------------------------------------+\n");
+    printf("+-----------------------------------------+\n");
+    printf("|        KS Key Status Sample Code        |\n");
+    printf("+-----------------------------------------+\n");
 
     if (KS_Open() != 0)
     {

@@ -95,7 +95,7 @@ void PowerDown(void)
     /* Wakeup Enable */
     HSUSBD->PHYCTL |= HSUSBD_PHYCTL_VBUSWKEN_Msk | HSUSBD_PHYCTL_LINESTATEWKEN_Msk;
 
-    PMC_PowerDown();
+    PMC_Idle();
 
     g_u8Suspend = 0;
     HSUSBD_ENABLE_USB();
@@ -138,6 +138,7 @@ int32_t main(void)
 
 #ifdef SUPPORT_LPM
     HSUSBD_ENABLE_LPM();
+    HSUSBD_ENABLE_LPMSLEEP();
 #endif
 
     /* Endpoint configuration */
@@ -154,6 +155,8 @@ int32_t main(void)
         /* Enter power down when USB suspend */
         if (g_u8Suspend)
         {
+            /* User can adjust bits [11:8] of the bmAttributes field in gu8BOSDescriptor to reduce power consumption.
+               Idle mode supports all values; Power-down mode supports only values from 0x3 to 0xF. */
             PowerDown();
 
             /* Waiting for key release */

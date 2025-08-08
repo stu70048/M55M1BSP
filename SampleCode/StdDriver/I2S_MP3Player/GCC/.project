@@ -67,7 +67,7 @@
 		<link>
 			<name>MP3Lib/MP3Lib</name>
 			<type>2</type>
-			<locationURI>PARENT-4-PROJECT_LOC/ThirdParty/LibMAD/src</locationURI>
+			<locationURI>PARENT-4-PROJECT_LOC/ThirdParty/libmad/src</locationURI>
 		</link>
 		<link>
 			<name>Library/clk.c</name>

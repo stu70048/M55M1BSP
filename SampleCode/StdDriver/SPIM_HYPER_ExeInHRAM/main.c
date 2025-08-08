@@ -23,7 +23,12 @@ void spim_routine(void);
 */
 void Reset_Handler_PreInit(void)
 {
-    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST0;
+    /*
+        Set I/O slew rate to FAST1 (100 MHz).
+        Use FAST1 if targeting 1.8V devices for better timing margin.
+        Adjust if signal issues or EMI are observed.
+    */
+    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST1;
 
     SYS_UnlockReg();
 

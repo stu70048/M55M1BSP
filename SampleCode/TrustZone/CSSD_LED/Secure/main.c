@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include "NuMicro.h"            /* Device header */
 #include "partition_M55M1.h"
-#include "..\lib\cssd_nsclib.h"
+#include "../lib/cssd_nsclib.h"
 
 #define LOOP_HERE           0xE7FEE7FF      /* Instruction Code of "B ." */
 #define SECURE_LED0         PD5             /* NuMaker LED_G */

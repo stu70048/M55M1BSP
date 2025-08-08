@@ -20,7 +20,12 @@
 //------------------------------------------------------------------------------
 void SYS_Init(void)
 {
-    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST0;
+    /*
+        Set I/O slew rate to FAST1 (100 MHz).
+        Use FAST1 if targeting 1.8V devices for better timing margin.
+        Adjust if signal issues or EMI are observed.
+    */
+    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST1;
 
     /* Enable Internal RC 12MHz clock */
     CLK_EnableXtalRC(CLK_SRCCTL_HIRCEN_Msk);
@@ -50,8 +55,6 @@ void SYS_Init(void)
 
     /* Enable SPIM module clock */
     CLK_EnableModuleClock(SPIM0_MODULE);
-    /* Enable OTFC module clock */
-    CLK_EnableModuleClock(OTFC0_MODULE);
 
     /* Enable GPIO Module clock */
     CLK_EnableModuleClock(GPIOG_MODULE);

@@ -14,7 +14,7 @@
 //------------------------------------------------------------------------------
 #define SPIM_PORT                   SPIM0
 #define SPIM_PORT_DIV               1
-#define TRIM_PAT_SIZE               32
+#define TRIM_PAT_SIZE               128
 #define FLH_SECTOR_SIZE             0x1000
 #define FLH_TRIM_ADDR               (0x400000 - FLH_SECTOR_SIZE)
 
@@ -51,9 +51,6 @@ void SPIFlash_Init(SPIM_T *spim)
 
     /* Set SPIM clock as HCLK divided by 1 */
     SPIM_SET_CLOCK_DIVIDER(SPIM_PORT, SPIM_PORT_DIV);
-
-    /* Disable SPIM Cipher */
-    SPIM_DISABLE_CIPHER(SPIM_PORT);
 
     /* Initialized SPI flash */
     if (SPIM_InitFlash(SPIM_PORT, SPIM_OP_ENABLE) != SPIM_OK)
@@ -107,7 +104,12 @@ void SPIM_SetDMMAddrNonCacheable(void)
 
 void SYS_Init(void)
 {
-    uint32_t u32SlewRate = GPIO_SLEWCTL_HIGH;
+    /*
+        Set I/O slew rate to FAST1 (100 MHz).
+        Use FAST1 if targeting 1.8V devices for better timing margin.
+        Adjust if signal issues or EMI are observed.
+    */
+    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST1;
 
     /* Enable Internal RC 12MHz clock */
     CLK_EnableXtalRC(CLK_SRCCTL_HIRCEN_Msk);
@@ -137,7 +139,6 @@ void SYS_Init(void)
 
     /* Enable SPIM module clock */
     CLK_EnableModuleClock(SPIM0_MODULE);
-    CLK_EnableModuleClock(OTFC0_MODULE);
 
     /* Enable GPIO Module clock */
     CLK_EnableModuleClock(GPIOH_MODULE);
@@ -233,13 +234,8 @@ static uint8_t isConsecutive(uint8_t au8Src[], uint32_t size)
  */
 void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *psWbRdCMD)
 {
-    if (spim == NULL)
-    {
-        return;
-    }
-
     uint8_t u8RdDelay = 0;
-    uint8_t u8RdDelayRes[SPIM_MAX_DLL_LATENCY] = {0};
+    uint8_t u8RdDelayRes[SPIM_MAX_RX_DLY_NUM] = {0};
     uint32_t u32PatternSize = TRIM_PAT_SIZE;
     uint32_t u32ReTrimMaxCnt = 6;
     uint32_t u32LoopAddr = 0;
@@ -250,6 +246,10 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *p
     uint32_t u32ReTrimCnt = 0;
     uint32_t u32SrcAddr = FLH_TRIM_ADDR;
     uint32_t u32Div = SPIM_GET_CLOCK_DIVIDER(spim); // Divider value
+    /*
+        SPIM DMA requires memory buffers to be 8-byte aligned.
+        TRIM_PAT_SIZE is in bytes and must be divisible by 8.
+    */
     uint64_t au64TrimPattern[(TRIM_PAT_SIZE * 2) / 8] = {0};
     uint64_t au64VerifyBuf[(TRIM_PAT_SIZE / 8)] = {0};
     uint8_t *pu8TrimPattern = (uint8_t *)au64TrimPattern;
@@ -281,6 +281,7 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *p
                     SPIM_OP_ENABLE);
 
     /* Write trim pattern */
+    SPIM_DMADMM_InitPhase(spim, psWbWrCMD, SPIM_CTL0_OPMODE_PAGEWRITE);
     SPIM_DMA_Write(spim,
                    u32SrcAddr,
                    psWbWrCMD->u32AddrWidth == PHASE_WIDTH_32 ? SPIM_OP_ENABLE : SPIM_OP_DISABLE,
@@ -303,13 +304,6 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *p
 
             memset(pu8VerifyBuf, 0, sizeof(au64VerifyBuf));
 
-#if (NVT_DCACHE_ON == 1)
-            // Invalidate the data cache for the DMA read buffer
-            SCB_InvalidateDCache_by_Addr(
-                (volatile uint32_t *)((u32ReTrimCnt == 1) ? u32SrcAddr : (u32DMMAddr + u32SrcAddr)), // Determine address based on re-trim count
-                (int32_t)TRIM_PAT_SIZE * 2); // Invalidate cache for the specified size
-#endif
-
             /* Calculate the pattern size based on the trim count */
             u32PatternSize =
                 (((u32ReTrimCnt == 2) || (u32ReTrimCnt >= 3)) && (u8RdDelay == 0)) ?
@@ -321,6 +315,13 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *p
 
             for (u32k = 0; u32k < u32PatternSize; u32k += 0x08)
             {
+#if (NVT_DCACHE_ON == 1)
+                // Invalidate the data cache for the DMA read buffer
+                SCB_InvalidateDCache_by_Addr(
+                    (volatile uint32_t *)((u32ReTrimCnt == 1) ? u32SrcAddr : (u32DMMAddr + u32SrcAddr)), // Determine address based on re-trim count
+                    (int32_t)TRIM_PAT_SIZE * 2); // Invalidate cache for the specified size
+#endif
+
                 if (u32ReTrimCnt == 1)
                 {
                     SPIM_DMA_Read(SPIM_PORT,
@@ -358,7 +359,7 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *p
 
     for (u32i = 0; u32i < SPIM_MAX_RX_DLY_NUM; u32i++)
     {
-        if (u8RdDelayRes[u32i] == u32ReTrimMaxCnt)
+        if (u8RdDelayRes[u32i] >= u32ReTrimMaxCnt)
         {
             u8RdDelayRes[u32j++] = u32i;
         }

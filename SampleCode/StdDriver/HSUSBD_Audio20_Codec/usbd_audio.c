@@ -314,8 +314,6 @@ NVT_ITCM void HSUSBD_IRQHandler(void)
     {
         /* Isochronous in */
         IrqSt = HSUSBD->EP[EPA].EPINTSTS & HSUSBD->EP[EPA].EPINTEN;
-        HSUSBD_ENABLE_EP_INT(EPA, 0);
-        HSUSBD_ENABLE_EP_INT(EPB, HSUSBD_EPINTEN_RXPKIEN_Msk | HSUSBD_EPINTEN_SHORTRXIEN_Msk);
         EPA_IsoInHandler();
         HSUSBD_CLR_EP_INT_FLAG(EPA, IrqSt);
     }
@@ -324,8 +322,6 @@ NVT_ITCM void HSUSBD_IRQHandler(void)
     {
         /* Isochronous out */
         IrqSt = HSUSBD->EP[EPB].EPINTSTS & HSUSBD->EP[EPB].EPINTEN;
-        HSUSBD_ENABLE_EP_INT(EPB, 0);
-        HSUSBD_ENABLE_EP_INT(EPA, HSUSBD_EPINTEN_INTKIEN_Msk);
         EPB_IsoOutHandler();
         HSUSBD_CLR_EP_INT_FLAG(EPB, IrqSt);
     }
@@ -925,10 +921,6 @@ void AudioStartPlay(uint32_t u32SampleRate)
     /* Enable PDMA channel */
     PDMA0->CHCTL |= (1 << PDMA_I2S_TX_CH);
     printf("Start Play ... \n");
-
-    // workaround for PDMA suspend
-    //    PDMA0->DSCT[PDMA_I2S_TX_CH].CTL = 0;
-    //    PDMA0->DSCT[PDMA_I2S_TX_CH].CTL = 2;
 }
 
 /**

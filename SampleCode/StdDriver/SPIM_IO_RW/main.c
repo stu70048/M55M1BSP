@@ -19,7 +19,7 @@
 #define FLASH_BLOCK_SIZE            (8 * 1024)  /* Flash block size. Depend on the physical flash. */
 #define TEST_BLOCK_ADDR             0x10000     /* Test block address on SPI flash. */
 #define BUFFER_SIZE                 2048
-#define TRIM_PAT_SIZE               32
+#define TRIM_PAT_SIZE               128
 
 //------------------------------------------------------------------------------
 #if (NVT_DCACHE_ON == 1)
@@ -49,7 +49,12 @@ extern SPIM_PHASE_T gsWbEChRdCMD;
 //------------------------------------------------------------------------------
 void SYS_Init(void)
 {
-    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST0;
+    /*
+        Set I/O slew rate to FAST1 (100 MHz).
+        Use FAST1 if targeting 1.8V devices for better timing margin.
+        Adjust if signal issues or EMI are observed.
+    */
+    uint32_t u32SlewRate = GPIO_SLEWCTL_FAST1;
 
     /* Enable Internal RC 12MHz clock */
     CLK_EnableXtalRC(CLK_SRCCTL_HIRCEN_Msk);
@@ -79,7 +84,6 @@ void SYS_Init(void)
 
     /* Enable SPIM module clock */
     CLK_EnableModuleClock(SPIM0_MODULE);
-    CLK_EnableModuleClock(OTFC0_MODULE);
 
     /* Enable GPIO Module clock */
     CLK_EnableModuleClock(GPIOH_MODULE);
@@ -116,6 +120,7 @@ void SYS_Init(void)
     GPIO_SetSlewCtl(PJ, BIT4, u32SlewRate);
     GPIO_SetSlewCtl(PJ, BIT5, u32SlewRate);
     GPIO_SetSlewCtl(PJ, BIT6, u32SlewRate);
+    GPIO_SetSlewCtl(PJ, BIT7, u32SlewRate);
 }
 
 /**
@@ -184,6 +189,10 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *p
     uint32_t u32ReTrimCnt = 0;
     uint32_t u32SrcAddr = 0;
     uint32_t u32Div = SPIM_GET_CLOCK_DIVIDER(spim); // Divider value
+    /*
+        SPIM DMA requires memory buffers to be 8-byte aligned.
+        TRIM_PAT_SIZE is in bytes and must be divisible by 8.
+    */
     uint64_t au64TrimPattern[(TRIM_PAT_SIZE * 2) / 8] = {0};
     uint64_t au64VerifyBuf[(TRIM_PAT_SIZE / 8)] = {0};
     uint8_t *pu8TrimPattern = (uint8_t *)au64TrimPattern;
@@ -215,6 +224,7 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *p
                     SPIM_OP_ENABLE);
 
     /* Write trim pattern */
+    SPIM_DMADMM_InitPhase(spim, psWbWrCMD, SPIM_CTL0_OPMODE_PAGEWRITE);
     SPIM_DMA_Write(spim,
                    u32SrcAddr,
                    psWbWrCMD->u32AddrWidth == PHASE_WIDTH_32 ? SPIM_OP_ENABLE : SPIM_OP_DISABLE,
@@ -258,6 +268,7 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *p
 
                 if (u32ReTrimCnt == 1)
                 {
+
                     SPIM_DMA_Read(SPIM_PORT,
                                   (u32SrcAddr + u32LoopAddr),
                                   (psWbRdCMD->u32AddrWidth == PHASE_WIDTH_32) ? SPIM_OP_ENABLE : SPIM_OP_DISABLE,
@@ -293,7 +304,7 @@ void SPIM_TrimRxClkDlyNum(SPIM_T *spim, SPIM_PHASE_T *psWbWrCMD, SPIM_PHASE_T *p
 
     for (u32i = 0; u32i < SPIM_MAX_RX_DLY_NUM; u32i++)
     {
-        if (u8RdDelayRes[u32i] == u32ReTrimMaxCnt)
+        if (u8RdDelayRes[u32i] >= (u32ReTrimMaxCnt / 2))
         {
             u8RdDelayRes[u32j++] = u32i;
         }
@@ -327,8 +338,7 @@ int main()
 
     /* Set SPIM clock as HCLK divided by 1 */
     SPIM_SET_CLOCK_DIVIDER(SPIM_PORT, SPIM_PORT_DIV);
-
-    SPIM_DISABLE_CIPHER(SPIM_PORT);
+    SPIM_SET_RXCLKDLY_RDDLYSEL(SPIM_PORT, 3);
 
     if (SPIM_InitFlash(SPIM_PORT, SPIM_OP_ENABLE) != SPIM_OK)      /* Initialized SPI flash */
     {

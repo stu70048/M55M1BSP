@@ -833,7 +833,7 @@ void MSC_ReceiveCBW(uint32_t u32Buf, uint32_t u32Len)
 
 #if (NVT_DCACHE_ON == 1)
     /* Host to device.Invalidate the cache to allow the CPU to access the latest data. */
-    SCB_InvalidateDCache_by_Addr((uint8_t *)(u32Buf), DCACHE_ALIGN_LINE_SIZE(32));
+    SCB_InvalidateDCache_by_Addr((uint8_t *)(u32Buf), DCACHE_ALIGN_LINE_SIZE(u32Len));
 #endif
 }
 

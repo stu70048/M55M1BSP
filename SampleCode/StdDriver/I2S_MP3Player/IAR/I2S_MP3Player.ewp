@@ -354,7 +354,7 @@
                     <state>$PROJ_DIR$\..\..\..\..\Library\Device\Nuvoton\M55M1\Include</state>
                     <state>$PROJ_DIR$\..\..\..\..\Library\StdDriver\inc</state>
                     <state>$PROJ_DIR$\..\..\..\..\Library\Storage\</state>
-                    <state>$PROJ_DIR$\..\..\..\..\ThirdParty\FATFS\source</state>
+                    <state>$PROJ_DIR$\..\..\..\..\ThirdParty\FatFs\source</state>
                     <state>$PROJ_DIR$\..\..\..\..\ThirdParty\libmad\inc</state>
                     <state>$PROJ_DIR$\</state>
                 </option>
@@ -1103,7 +1103,7 @@
         </file>
     </group>
     <group>
-        <name>FATFS</name>
+        <name>FatFs</name>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\ThirdParty\FatFs\source\ff.c</name>
         </file>

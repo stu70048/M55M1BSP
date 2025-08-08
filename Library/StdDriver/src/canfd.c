@@ -1,7 +1,7 @@
 /****************************************************************************
  * @file     canfd.c
  * @version  V1.00
- * @brief    M55M1 series CAN FD driver source file
+ * @brief    CAN FD driver source file
  *
  * @copyright SPDX-License-Identifier: Apache-2.0
  * @copyright Copyright (C) 2023 Nuvoton Technology Corp. All rights reserved.
@@ -119,15 +119,6 @@
 /* Rx Buffer and FIFO Element RXTS(Rx Timestamp)    */
 #define RX_BUFFER_AND_FIFO_R1_ELEM_RXTS_Pos  (0)
 #define RX_BUFFER_AND_FIFO_R1_ELEM_RXTS_Msk  (0xFFFFul << RX_BUFFER_AND_FIFO_R1_ELEM_RXTS_Pos)
-
-/* Rx Buffer and FIFO Element RXTSP(Rx Timestamp Pointer)    */
-#define RX_BUFFER_AND_FIFO_R1_ELEM_TSC_Pos  (4)
-#define RX_BUFFER_AND_FIFO_R1_ELEM_TSC_Msk  (0x1ul << RX_BUFFER_AND_FIFO_R1_ELEM_TSC_Pos)
-
-/* Rx Buffer and FIFO Element RXTS(Rx Timestamp Pointer)    */
-#define RX_BUFFER_AND_FIFO_R1_ELEM_RXTSP_Pos (0)
-#define RX_BUFFER_AND_FIFO_R1_ELEM_RXTSP_Msk (0xFul << RX_BUFFER_AND_FIFO_R1_ELEM_RXTSP_Pos)
-
 
 /* Tx Buffer Element ESI(Error State Indicator)    */
 #define TX_BUFFER_T0_ELEM_ESI_Pos  (31)
@@ -1519,21 +1510,12 @@ void CANFD_CopyDBufToMsgBuf(CANFD_T *psCanfd, CANFD_BUF_T *psRxBuf, CANFD_FD_MSG
     else
         psMsgBuf->bBitRateSwitch = FALSE;
 
-
-    if ((psCanfd->TSCC & CANFD_TSCC_TSS_Msk) == 0x02)
-    {
-        psMsgBuf->bTimestampCaptured = TRUE;
-        psMsgBuf->u16RxTimestamp = 0;
-        psMsgBuf->u8RxTimestampPointer = (psRxBuf->u32Config & RX_BUFFER_AND_FIFO_R1_ELEM_RXTSP_Msk);
-    }
-
-    if ((psCanfd->TSCC & CANFD_TSCC_TSS_Msk) == 0x01)
+    if (psCanfd->TSCC & CANFD_TSCC_TSS_Msk)
     {
         psMsgBuf->bTimestampCaptured = FALSE;
         psMsgBuf->u8RxTimestampPointer = 0;
         psMsgBuf->u16RxTimestamp = (psRxBuf->u32Config & RX_BUFFER_AND_FIFO_R1_ELEM_RXTS_Msk);
     }
-
 
     psMsgBuf->u32DLC = CANFD_DecodeDLC((psRxBuf->u32Config & RX_BUFFER_AND_FIFO_R1_ELEM_DLC_Msk) >> RX_BUFFER_AND_FIFO_R1_ELEM_DLC_Pos);
 
@@ -1933,6 +1915,9 @@ void CANFD_RunToNormal(CANFD_T *psCanfd, uint8_t u8Enable)
 
             u32TimeOutCount--;
         }
+
+        /* Configuration change enable */
+        psCanfd->CCCR |= CANFD_CCCR_CCE_Msk;
     }
 }
 

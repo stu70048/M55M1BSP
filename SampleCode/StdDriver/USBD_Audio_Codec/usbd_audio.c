@@ -21,18 +21,18 @@ static volatile uint8_t g_u8PlayVolumeRAdjust = FALSE;
 /* Global variables for Audio class */
 uint32_t g_usbd_UsbAudioState = 0;
 
-static uint8_t  s_u8UsbdRecMute = 0x01;
-static int16_t  s_u16UsbdRecVolume = 0x1000;
-static int16_t  s_u16UsbdRecMaxVolume = 0x7FFF;
-static int16_t  s_u16UsbdRecMinVolume = (int16_t)0x8000;
-static int16_t  s_u16UsbdRecResVolume = 0x400;
+static uint8_t s_u8UsbdRecMute = 0x01;
+static int16_t s_u16UsbdRecVolume = 0x1000;
+static int16_t s_u16UsbdRecMaxVolume = 0x7FFF;
+static int16_t s_u16UsbdRecMinVolume = (int16_t)0x8000;
+static int16_t s_u16UsbdRecResVolume = 0x400;
 
-static uint8_t  s_u8UsbdPlayMute = 0x01;
-static int16_t  s_u16UsbdPlayVolumeL = 0x1000;
-static int16_t  s_u16UsbdPlayVolumeR = 0x1000;
-static int16_t  s_u16UsbdPlayMaxVolume = 0x7FFF;
-static int16_t  s_u16UsbdPlayMinVolume = (int16_t)0x8000;
-static int16_t  s_u16UsbdPlayResVolume = 0x400;
+static uint8_t s_u8UsbdPlayMute = 0x01;
+static int16_t s_u16UsbdPlayVolumeL = 0x1000;
+static int16_t s_u16UsbdPlayVolumeR = 0x1000;
+static int16_t s_u16UsbdPlayMaxVolume = 0x7FFF;
+static int16_t s_u16UsbdPlayMinVolume = (int16_t)0x8000;
+static int16_t s_u16UsbdPlayResVolume = 0x400;
 
 static uint8_t volatile s_u8PlayEn = 0;
 uint8_t volatile g_u8AudioPlaying = 0;
@@ -787,10 +787,6 @@ void AudioStartPlay(uint32_t u32SampleRate)
     /* Enable PDMA channel */
     PDMA0->CHCTL |= (1 << PDMA_I2S_TX_CH);
     printf("Start Play ... \n");
-
-    // workaround for PDMA suspend
-    //PDMA0->DSCT[PDMA_I2S_TX_CH].CTL = 0;
-    //PDMA0->DSCT[PDMA_I2S_TX_CH].CTL = 2;
 }
 
 /**
@@ -841,9 +837,6 @@ void AudioStartRecord(uint32_t u32SampleRate)
     /* Enable PDMA channel */
     PDMA0->CHCTL |= (1 << PDMA_I2S_RX_CH);
     printf("Start Record ... \n");
-
-    //    PDMA0->DSCT[PDMA_I2S_RX_CH].CTL = 0;
-    //    PDMA0->DSCT[PDMA_I2S_RX_CH].CTL = 2;
 }
 
 /* TIMER0 Interrupt handler */

@@ -2015,6 +2015,7 @@ void SYS_Init(void)
     CLK_EnableModuleClock(KDF0_MODULE);
     CLK_EnableModuleClock(TRNG0_MODULE);
     CLK_EnableModuleClock(KS0_MODULE);
+    CLK_EnableModuleClock(CRYPTO0_MODULE);
 
     /* Debug UART clock setting*/
     SetDebugUartCLK();

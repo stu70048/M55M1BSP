@@ -1,18 +1,19 @@
-# M55M1/M5531 Series CMSIS BSP
+# M55M1 Series CMSIS BSP
 
-To experience the powerful features of M55M1/M5531 series in few minutes, please select the sample code to download and execute on the NuMaker-M55M1 board. Open the project files to build them with Keil® MDK, IAR, NuEclipse or VSCode, and then download and trace them on the NuMaker board to see how it works.
+To experience the powerful features of M55M1 series in few minutes, please select the sample code to download and execute on the NuMaker-M55M1 board. Open the project files to build them with Keil® MDK, IAR, NuEclipse or VSCode, and then download and trace them on the NuMaker board to see how it works.
 
+In Extentions of Visual Studio Code, please install Nuvoton NuMicro Cortex-M Pack. It is a complete development toolkit for Nuvoton's NuMicro Cortex-M microcontrollers.
 
 ## .\Document\
 
 - CMSIS.html<br>
 	Document of CMSIS version 6.1.0.
 
-- NuMicro M55M1_M5531 Series CMSIS BSP Driver Reference Guide.chm<br>
-	This document describes the usage of drivers in M55M1/M5531 Series BSP.
+- NuMicro M55M1 Series CMSIS BSP Driver Reference Guide.chm<br>
+	This document describes the usage of drivers in M55M1 Series BSP.
 
-- NuMicro M55M1_M5531 Series CMSIS BSP Revision History.pdf<br>
-	This document shows the revision history of M55M1/M5531 Series BSP.
+- NuMicro M55M1 Series CMSIS BSP Revision History.pdf<br>
+	This document shows the revision history of M55M1 Series BSP.
 
 
 ## .\Library\
@@ -40,6 +41,9 @@ To experience the powerful features of M55M1/M5531 series in few minutes, please
 
 - StdDriver<br>
 	All peripheral driver header and source files.
+
+- Storage<br>
+	Disk I/O modules for FatFs.
 
 - UsbHostLib<br>
 	USB host library source code.
@@ -80,16 +84,17 @@ To experience the powerful features of M55M1/M5531 series in few minutes, please
 	Sample code for power management.
 
 - SecureApplication<br>
-	Sample code for secure application.
+	Sample code for secure application.<p>
+	VSCode projects require Python 3.12 at least for post-build.
 
 - Semihost<br>
 	Show how to print and get character through IDE console window.
 
 - StdDriver<br>
-	Sample code to demonstrate the usage of M55M1/M5531 series MCU peripheral driver APIs.
+	Sample code to demonstrate the usage of M55M1 series MCU peripheral driver APIs.
 
 - Template<br>
-	Project template for M55M1/M5531 series MCU.
+	Project template for M55M1 series MCU.
 
 - TrustZone<br>
 	Demo of secure code and non-secure code.
@@ -150,4 +155,4 @@ To experience the powerful features of M55M1/M5531 series in few minutes, please
 
 Copyright in some of the content available in this BSP belongs to third parties.
 Third parties license is specified in a file header or license file.<p>
-M55M1/M5531 Series BSP files are provided under the Apache-2.0 license.
+M55M1 Series BSP files are provided under the Apache-2.0 license.

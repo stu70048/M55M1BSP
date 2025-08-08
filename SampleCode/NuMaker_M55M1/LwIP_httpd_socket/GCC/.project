@@ -132,17 +132,17 @@
 		<link>
 			<name>LwIP/sys_arch.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/lwip/sys_arch.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/lwIP/sys_arch.c</locationURI>
 		</link>	
 		<link>
 			<name>LwIP/time_stamp.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/lwip/time_stamp.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/lwIP/time_stamp.c</locationURI>
 		</link>	
 		<link>
 			<name>LwIP/ethernetif.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/lwip/netif/ethernetif.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/lwIP/netif/ethernetif.c</locationURI>
 		</link>			
 		<link>
 			<name>LwIP/def.c</name>

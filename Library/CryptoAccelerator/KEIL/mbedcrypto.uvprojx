@@ -338,7 +338,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>-Wno-shift-count-overflow -Wno-absolute-value -Wno-shift-negative-value</MiscControls>
-              <Define>MBEDTLS_CONFIG_FILE,</Define>
+              <Define>MBEDTLS_CONFIG_FILE, MANUAL_ALIGNMENT</Define>
               <Undefine></Undefine>
               <IncludePath>..\..\Device\Nuvoton\M55M1\Include;..\..\..\ThirdParty\mbedtls\include;..\..\..\ThirdParty\mbedtls\library;..\..\..\ThirdParty\mbedtls;..\..\CryptoAccellerator;..\..\CMSIS\Core\Include;..\..\StdDriver\inc;..\</IncludePath>
             </VariousControls>
@@ -430,14 +430,14 @@
               <FilePath>..\sha256_alt.c</FilePath>
             </File>
             <File>
-              <FileName>trng_api.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\trng_api.c</FilePath>
-            </File>
-            <File>
               <FileName>hkdf_alt.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\hkdf_alt.c</FilePath>
+            </File>
+            <File>
+              <FileName>trng_api.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\trng_api.c</FilePath>
             </File>
             <File>
               <FileName>mbedtls_config.h</FileName>

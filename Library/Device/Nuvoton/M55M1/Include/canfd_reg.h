@@ -777,7 +777,7 @@ typedef struct
      * ---------------------------------------------------------------------------------------------------
      * |Bits    |Field     |Descriptions
      * | :----: | :----:   | :---- |
-     * |[5:0]   |F0A       |Rx FIFO 0 Acknowledge Index
+     * |[5:0]   |F0AI      |Rx FIFO 0 Acknowledge Index
      * |        |          |After the Host has read a message or a sequence of messages from Rx FIFO 0 it has to write the buffer index of the last element read from Rx FIFO 0 to F0AI
      * |        |          |This will set the Rx FIFO 0 Get Index F0GI (CANFD_RXF0S[13:8]) to F0AI (CANFD_RXF0A[5:0]) + 1 and update the FIFO 0 Fill Level F0FL(CANFD_RXF0S[6:0]).
      * @var CANFD_T::RXBC
@@ -1615,8 +1615,8 @@ typedef struct
 #define CANFD_RXF0S_RF0L_Pos             (25)                                              /*!< CANFD_T::RXF0S: RF0L Position          */
 #define CANFD_RXF0S_RF0L_Msk             (0x1ul << CANFD_RXF0S_RF0L_Pos)                   /*!< CANFD_T::RXF0S: RF0L Mask              */
 
-#define CANFD_RXF0A_F0A_Pos              (0)                                               /*!< CANFD_T::RXF0A: F0A Position           */
-#define CANFD_RXF0A_F0A_Msk              (0x3ful << CANFD_RXF0A_F0A_Pos)                   /*!< CANFD_T::RXF0A: F0A Mask               */
+#define CANFD_RXF0A_F0AI_Pos              (0)                                              /*!< CANFD_T::RXF0A: F0AI Position           */
+#define CANFD_RXF0A_F0AI_Msk              (0x3ful << CANFD_RXF0A_F0AI_Pos)                 /*!< CANFD_T::RXF0A: F0AI Mask               */
 
 #define CANFD_RXBC_RBSA_Pos              (2)                                               /*!< CANFD_T::RXBC: RBSA Position           */
 #define CANFD_RXBC_RBSA_Msk              (0x3ffful << CANFD_RXBC_RBSA_Pos)                 /*!< CANFD_T::RXBC: RBSA Mask               */

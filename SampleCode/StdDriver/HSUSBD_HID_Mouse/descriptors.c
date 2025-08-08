@@ -321,7 +321,7 @@ uint8_t gu8BOSDescriptor[] =
                     LEN_BOSCAP,     /* bLength */
                     DESC_CAPABILITY,/* bDescriptorType */
                     CAP_USB20_EXT,  /* bDevCapabilityType, 0x02 is USB 2.0 Extension */
-                    0x06, 0x04, 0x00, 0x00  /* bmAttributes, 32 bits */
+                    0x0E, 0x09, 0x00, 0x00  /* bmAttributes, 32 bits */
                     /* bit 0 : Reserved. Must 0. */
                     /* bit 1 : 1 to support LPM. */
                     /* bit 2 : 1 to support BSL & Alternat HIRD. */

@@ -15,7 +15,7 @@
 /**************************************/
 /* NAU8822 Setting                    */
 /**************************************/
-static __IO uint32_t g_u32EndFlag0 = 0;
+static volatile uint32_t g_u32EndFlag0 = 0;
 static volatile uint8_t g_u8IsI2CIdle = TRUE;
 
 void RecoveryFromArbLost(void)
@@ -23,6 +23,7 @@ void RecoveryFromArbLost(void)
     I2C_PORT->CTL0 &= ~I2C_CTL0_I2CEN_Msk;
     I2C_PORT->CTL0 |= I2C_CTL0_I2CEN_Msk;
 }
+
 /*---------------------------------------------------------------------------------------------------------*/
 /*  Write 9-bit data to 7-bit address register of NAU8822 with I2C_PORT                                    */
 /*---------------------------------------------------------------------------------------------------------*/

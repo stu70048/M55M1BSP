@@ -1,6 +1,6 @@
 project:
   packs:
-    - pack: Nuvoton::NuMicro_DFP
+    - pack: Nuvoton::NuMicroM55_DFP
   setups:
     - output:
         # bin, elf, hex, lib
@@ -93,16 +93,34 @@ project:
         - for-compiler: GCC
           Link:
             - -Wl,--defsym="VECMAP_BASE=0x280000"
+    - setup: Options for FMC_MultiBoot_LDROM
+      for-context: .FMC_MultiBoot_LDROM
+      output:
+        base-name: FMC_MultiBoot_LDROM
   linker:
     - script: ./FMC_MultiBoot_APROM.scatter
       for-compiler: AC6
+      for-context:
+        - .FMC_MultiBoot_0x100000
+        - .FMC_MultiBoot_0x160000
+        - .FMC_MultiBoot_0x1C0000
+        - .FMC_MultiBoot_0x220000
+        - .FMC_MultiBoot_0x280000
     - script: ./FMC_MultiBoot_APROM.ld
       for-compiler: GCC
+      for-context:
+        - .FMC_MultiBoot_0x100000
+        - .FMC_MultiBoot_0x160000
+        - .FMC_MultiBoot_0x1C0000
+        - .FMC_MultiBoot_0x220000
+        - .FMC_MultiBoot_0x280000
+    - script: ../../../../Library/Device/Nuvoton/M55M1/Source/ARM/M55M1-LDROM.scatter
+      for-compiler: AC6
+      for-context: .FMC_MultiBoot_LDROM
+    - script: ../../../../Library/Device/Nuvoton/M55M1/Source/GCC/M55M1-LDROM.ld
+      for-compiler: GCC
+      for-context: .FMC_MultiBoot_LDROM
   groups:
-    - group: CMSIS
-      files:
-        - file: ../../../../Library/Device/Nuvoton/M55M1/Source/startup_M55M1.c
-        - file: ../../../../Library/Device/Nuvoton/M55M1/Source/system_M55M1.c
     - group: Library
       files:
         - file: ../../../../Library/StdDriver/src/retarget.c
@@ -110,6 +128,34 @@ project:
         - file: ../../../../Library/StdDriver/src/sys.c
         - file: ../../../../Library/StdDriver/src/uart.c
         - file: ../../../../Library/StdDriver/src/fmc.c
-    - group: User
+    - group: CMSIS-APROM
+      files:
+        - file: ../../../../Library/Device/Nuvoton/M55M1/Source/startup_M55M1.c
+        - file: ../../../../Library/Device/Nuvoton/M55M1/Source/system_M55M1.c
+      for-context:
+        - .FMC_MultiBoot_0x100000
+        - .FMC_MultiBoot_0x160000
+        - .FMC_MultiBoot_0x1C0000
+        - .FMC_MultiBoot_0x220000
+        - .FMC_MultiBoot_0x280000
+    - group: CMSIS-LDROM
+      files:
+        - file: ../LDROM_startup_M55M1.c
+        - file: ../LDROM_system_M55M1.c
+      for-context:
+        - .FMC_MultiBoot_LDROM
+    - group: User-APROM
       files:
         - file: ../main.c
+      for-context:
+        - .FMC_MultiBoot_0x100000
+        - .FMC_MultiBoot_0x160000
+        - .FMC_MultiBoot_0x1C0000
+        - .FMC_MultiBoot_0x220000
+        - .FMC_MultiBoot_0x280000
+    - group: User-LDROM
+      files:
+        - file: ../LDROM_main.c
+      for-context:
+        - .FMC_MultiBoot_LDROM
+

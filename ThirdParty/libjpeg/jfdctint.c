@@ -152,8 +152,10 @@ Sorry, this code only copes with 8x8 DCT blocks. /* deliberate syntax err */
 #else
 #define MULTIPLY(var,const)  ((var) * (const))
 #endif
-
-
+#include <stdint.h>
+#ifdef WITH_JPEGACC
+int16_t i16simdbuf[DCTSIZE2+8]; /*Global data buffer for SIMD fdct and successive quantize*/
+#endif
 /*
  * Perform the forward DCT on one block of samples.
  */
@@ -163,13 +165,12 @@ jpeg_fdct_islow (DCTELEM * data, JSAMPARRAY sample_data, JDIMENSION start_col)
     INT32 tmp0, tmp1, tmp2, tmp3;
     INT32 tmp10, tmp11, tmp12, tmp13;
     INT32 z1;
+ 
+#ifndef WITH_JPEGACC    
     DCTELEM *dataptr;
+#endif    
     JSAMPROW elemptr;
     int ctr;
-#ifdef WITH_JPEGACC
-    DCTELEM *dctelemptr;
-    int16_t i16simdbuf[DCTSIZE2+8];
-#endif
 
     SHIFT_TEMPS
 
@@ -178,10 +179,11 @@ jpeg_fdct_islow (DCTELEM * data, JSAMPARRAY sample_data, JDIMENSION start_col)
      * furthermore, we scale the results by 2**PASS1_BITS.
      * cK represents sqrt(2) * cos(K*pi/16).
      */
+#ifndef WITH_JPEGACC      
     dataptr = data;
-
+#endif
+    
 #ifdef WITH_JPEGACC
-
     for (ctr = 0; ctr < DCTSIZE; ctr++)
     {
         elemptr = sample_data[ctr] + start_col;
@@ -191,16 +193,14 @@ jpeg_fdct_islow (DCTELEM * data, JSAMPARRAY sample_data, JDIMENSION start_col)
             i16simdbuf[DCTSIZE*ctr+ii] = elemptr[ii];
         }
     }
+		
+		
 #ifdef DBG_NVT_JPEG
     for (ctr = 0; ctr < DCTSIZE2; ctr++)
         printf("u16simdbuf[%d] = %d\r\n", ctr, (int16_t)(i16simdbuf[ctr]));
 #endif//DBG_NVT_JPEG	
 
     jsimd_fdct_islow_helium((int16_t*)(i16simdbuf));
-    for (ctr = 0; ctr < DCTSIZE2; ctr++)
-    {
-        dataptr[ctr] = (int)(i16simdbuf[ctr]);
-    }
 
 #ifdef DBG_NVT_JPEG
     for (ctr = 0; ctr < DCTSIZE2; ctr++)
@@ -208,6 +208,7 @@ jpeg_fdct_islow (DCTELEM * data, JSAMPARRAY sample_data, JDIMENSION start_col)
 #endif//DBG_NVT_JPEG	
 		
 #else
+		//uint64_t start = GetSysTickCycleCount();
     for (ctr = 0; ctr < DCTSIZE; ctr++) {
         elemptr = sample_data[ctr] + start_col;
         /* Even part per LL&M figure 1 --- note that published figure is faulty;
@@ -358,7 +359,8 @@ jpeg_fdct_islow (DCTELEM * data, JSAMPARRAY sample_data, JDIMENSION start_col)
 
         dataptr++;			/* advance pointer to next column */
     }
-		
+		//uint64_t elapsed = GetSysTickCycleCount() - start;
+		//printf("jpeg_fdct_islow_cpu, elapsed %llu cycles\n", elapsed);
 #ifdef DBG_CPU_JPEG		
 	dataptr = data; /* need move to header position */
   for (int ii=0; ii<DCTSIZE2; ii++)

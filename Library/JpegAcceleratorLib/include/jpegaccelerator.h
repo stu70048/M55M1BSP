@@ -20,6 +20,11 @@ extern  "C" {
 #endif
 void jsimd_fdct_islow_helium(int16_t *data);
 void jsimd_quantize_helium(JCOEFPTR coef_block, DCTELEM *divisors, DCTELEM *workspace);
+#ifdef WITH_JPEGACC
+extern int16_t i16simdbuf[DCTSIZE2 + 8];
+extern int16_t g_i16divisors_recp0[DCTSIZE2 * 4];
+extern int16_t g_i16divisors_recp1[DCTSIZE2 * 4];
+#endif
 #ifdef  __cplusplus
 }
 #endif

@@ -104,6 +104,12 @@ int mbedtls_sha256_starts(mbedtls_sha256_context *ctx, int is224)
     else
         u32OpMode = SHA_MODE_SHA256;
 
+    //[2025-05-05]
+    /* Stop SHA */
+    CRYPTO->HMAC_CTL = CRYPTO_HMAC_CTL_STOP_Msk;
+    /* Clean buffer */
+    ctx->buffer_len = 0;
+
     /* Reset Crypto */
     SYS_UnlockReg();
     SYS->CRYPTORST |= SYS_CRYPTORST_CRYPTO0RST_Msk;

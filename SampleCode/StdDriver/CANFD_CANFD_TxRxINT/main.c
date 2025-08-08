@@ -311,18 +311,18 @@ void CANFD_Init(void)
     //CANFD0->DBTP |= CANFD_DBTP_TDC_Msk;
     //CANFD0->TDCR = 0x300;
 
-    /* receive 0x110~0x11F in CAN FD0 rx fifo1 buffer by setting mask 0 */
+    /* receive 0x110~0x11F in CAN FD0 rx fifo1 buffer by setting index 0 */
     CANFD_SetSIDFltr(CANFD0, 0, CANFD_RX_FIFO1_STD_MASK(0x110, 0x7F0));
-    /* receive 0x220 in CAN FD0 rx fifo1 buffer by setting mask 1 */
+    /* receive 0x220 in CAN FD0 rx fifo1 buffer by setting index 1 */
     CANFD_SetSIDFltr(CANFD0, 1, CANFD_RX_FIFO1_STD_MASK(0x22F, 0x7FF));
-    /* receive 0x333 in CAN FD0 rx fifo1 buffer by setting mask 2 */
+    /* receive 0x333 in CAN FD0 rx fifo1 buffer by setting index 2 */
     CANFD_SetSIDFltr(CANFD0, 2, CANFD_RX_FIFO1_STD_MASK(0x333, 0x7FF));
 
-    /* receive 0x220~0x22f (29-bit id) in CAN FD0 rx fifo1 buffer by setting mask 0 */
+    /* receive 0x220~0x22f (29-bit id) in CAN FD0 rx fifo1 buffer by setting index 0 */
     CANFD_SetXIDFltr(CANFD0, 0, CANFD_RX_FIFO1_EXT_MASK_LOW(0x220), CANFD_RX_FIFO1_EXT_MASK_HIGH(0x1FFFFFF0));
-    /* receive 0x3333 (29-bit id) in CAN FD0 rx fifo1 buffer by setting mask 1 */
+    /* receive 0x3333 (29-bit id) in CAN FD0 rx fifo1 buffer by setting index 1 */
     CANFD_SetXIDFltr(CANFD0, 1, CANFD_RX_FIFO1_EXT_MASK_LOW(0x3333), CANFD_RX_FIFO1_EXT_MASK_HIGH(0x1FFFFFFF));
-    /* receive 0x44444 (29-bit id) in CAN FD0 rx fifo1 buffer by setting mask 2 */
+    /* receive 0x44444 (29-bit id) in CAN FD0 rx fifo1 buffer by setting index 2 */
     CANFD_SetXIDFltr(CANFD0, 2, CANFD_RX_FIFO1_EXT_MASK_LOW(0x44444), CANFD_RX_FIFO1_EXT_MASK_HIGH(0x1FFFFFFF));
     /* Reject Non-Matching Standard ID and Extended ID Filter(RX fifo1) */
     CANFD_SetGFC(CANFD0, eCANFD_REJ_NON_MATCH_FRM, eCANFD_REJ_NON_MATCH_FRM, 1, 1);

@@ -234,6 +234,7 @@ uint32_t SDH_Write(SDH_T *sdh, uint8_t *pu8BufAddr, uint32_t u32StartSec, uint32
 uint32_t SDH_CardDetection(SDH_T *sdh);
 void SDH_Get_SD_info(SDH_T *sdh);
 void SDH_Set_clock(SDH_T *sdh, uint32_t sd_clock_khz);
+uint32_t SDH_SwitchToHighSpeed(SDH_T *sdh, SDH_INFO_T *pSD);
 
 int32_t SDH_CheckRB(SDH_T *sdh);
 uint32_t SDH_SDCmdAndRsp(SDH_T *sdh, uint32_t ucCmd, uint32_t uArg, uint32_t ntickCount);

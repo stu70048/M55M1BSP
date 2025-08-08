@@ -107,8 +107,7 @@ int32_t main(void)
     DFU_Init();
 
     /* Start transaction */
-    HSUSBD->OPER = HSUSBD_OPER_HISPDEN_Msk;   /* high-speed */
-    HSUSBD_CLR_SE0();
+    HSUSBD_Start();
 
 #if 1   /* User can select to use IRQ mode or polling mode. */
     /* Enable HSUSBD interrupt */

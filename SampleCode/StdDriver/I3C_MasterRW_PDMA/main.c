@@ -281,6 +281,8 @@ static void SYS_Init(void)
     /* Set SCL slew rate to GPIO_SLEWCTL_FAST0, SDA slew rate to GPIO_SLEWCTL_HIGH */
     GPIO_SetSlewCtl(PB, BIT1, GPIO_SLEWCTL_FAST0);
     GPIO_SetSlewCtl(PB, BIT0, GPIO_SLEWCTL_HIGH);
+    /* I3C pins enable schmitt trigger */
+    GPIO_ENABLE_SCHMITT_TRIGGER(PB, BIT0 | BIT1);
     /* Lock protected registers */
     SYS_LockReg();
 }

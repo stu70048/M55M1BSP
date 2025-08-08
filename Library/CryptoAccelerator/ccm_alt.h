@@ -79,16 +79,39 @@ extern "C" {
  * \brief    The CCM context-type definition. The CCM context is passed
  *           to the APIs called.
  */
+/**
+ * \brief    The CCM context-type definition. The CCM context is passed
+ *           to the APIs called.
+ */
 typedef struct mbedtls_ccm_context
 {
-    mbedtls_cipher_context_t cipher_ctx;    /*!< The cipher context used. */
 
-    __ALIGNED(4) uint8_t ccm_buf[MAX_CCM_BUF];
-    __ALIGNED(4) uint8_t out_buf[MAX_CCM_BUF + 16];
-    uint32_t keySize;
+    unsigned char MBEDTLS_PRIVATE(y)[16];    /*!< The Y working buffer */
+    unsigned char MBEDTLS_PRIVATE(ctr)[16];  /*!< The counter buffer */
+    mbedtls_cipher_context_t MBEDTLS_PRIVATE(cipher_ctx);    /*!< The cipher context used. */
+    size_t MBEDTLS_PRIVATE(plaintext_len);   /*!< Total plaintext length */
+    size_t MBEDTLS_PRIVATE(add_len);         /*!< Total authentication data length */
+    size_t MBEDTLS_PRIVATE(tag_len);         /*!< Total tag length */
+    size_t MBEDTLS_PRIVATE(processed);       /*!< Track how many bytes of input data
+                                                  were processed (chunked input).
+                                                  Used independently for both auth data
+                                                  and plaintext/ciphertext.
+                                                  This variable is set to zero after
+                                                  auth data input is finished. */
+    unsigned char MBEDTLS_PRIVATE(q);        /*!< The Q working value */
+    unsigned char MBEDTLS_PRIVATE(mode);     /*!< The operation to perform. */
+    int MBEDTLS_PRIVATE(state);              /*!< Working value holding context's
+                                                  state. Used for chunked data
+                                                  input */
 
 
 
+    uint8_t *MBEDTLS_PRIVATE(ccm_buf);
+    uint8_t *MBEDTLS_PRIVATE(out_buf);
+    uint8_t MBEDTLS_PRIVATE(key)[32];
+    uint32_t MBEDTLS_PRIVATE(keybits);
+    uint32_t MBEDTLS_PRIVATE(basicOp);
+    int32_t MBEDTLS_PRIVATE(keySize);
 }
 mbedtls_ccm_context;
 

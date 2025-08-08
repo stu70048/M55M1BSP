@@ -19,61 +19,85 @@
 #include <stdlib.h>
 #include "NuMicro.h"
 
-#define VAD_DETECT_SAMPLERATE      (16000)
+
+// Sampling rate in Hertz for voice activity detection.
+#define VAD_DETECT_SAMPLERATE      (8000)
+
+// Number of stability checks before entering power-down mode.
 #define VAD_STABLECNT      (100)
 
+// Stores power-down wake-up source flags.
 static volatile uint32_t g_u32PDWK;
 
+// Enable the VAD0 hardware to start voice activity detection.
 void VAD_Start(void)
 {
     DMIC_VAD_ENABLE(VAD0);
 }
 
+// Disable the VAD0 hardware and its interrupt to stop detection.
 void VAD_Stop(void)
 {
     DMIC_VAD_DISABLE(VAD0);
     NVIC_DisableIRQ(DMIC0VAD_IRQn);
 }
 
+
+// Step-by-step configuration of voice activity detection parameters.
 void VAD_Init(void)
 {
+    // Structure for BIQ filter coefficients
     DMIC_VAD_BIQ_T sBIQCoeff;
 
-    // (2) Enable VAD and input its detect parameter.
-    // Enable VAD down sample rate 48.
-    DMIC_VAD_SET_DOWNSAMPLE(VAD0, DMIC_VAD_DOWNSAMPLE_48);
-    // Set detect sample rate.
+    // Set downsample ratio to 64 to reduce data rate for VAD processing
+    DMIC_VAD_SET_DOWNSAMPLE(VAD0, DMIC_VAD_DOWNSAMPLE_64);
+
+    // Set detection sample rate (Hz) for VAD algorithm
     printf("VAD SampleRate is %d\n", DMIC_VAD_SetSampleRate(VAD0, VAD_DETECT_SAMPLERATE));
-    //VAD0->SINCCTL = 0x30210;
-    //printf("VAD SampleRate is %d\n", DMIC_VAD_GetSampleRate(VAD0));
-    // Writer BIQ coefficient(a0,a1,b0,b1,b2)
-    sBIQCoeff.u16BIQCoeffA1 = 0xC174;//0xC249;//0xC2EC;//0xC715;
-    sBIQCoeff.u16BIQCoeffA2 = 0x1F23;//0x1E01;//0x1D86;//0x19A0;
-    sBIQCoeff.u16BIQCoeffB0 = 0x016B;//0x01F7;//0x0233;//0x1CA3;
-    sBIQCoeff.u16BIQCoeffB1 = 0xFE0C;//0xFE12;//0xFE17;//0xC6BB;
-    sBIQCoeff.u16BIQCoeffB2 = 0x008E;//0xFFF9;//0xFFB9;//0x1CA3;
+
+    // Assign BIQ filter coefficients for band-in-band IIR filter: A1, A2, B0, B1, B2
+    sBIQCoeff.u16BIQCoeffA1 = 0xC174;
+    sBIQCoeff.u16BIQCoeffA2 = 0x1F23;
+    sBIQCoeff.u16BIQCoeffB0 = 0x016B;
+    sBIQCoeff.u16BIQCoeffB1 = 0xFE0C;
+    sBIQCoeff.u16BIQCoeffB2 = 0x008E;
+
+    // Apply BIQ coefficients to VAD hardware
     DMIC_VAD_SetBIQCoeff(VAD0, &sBIQCoeff);
-    // Enable VAD BIQ filter.
+    // Enable the BIQ filter for improved noise suppression
     DMIC_VAD_ENABLE_BIQ(VAD0);
-    // Set short term attack time.
+    // Configure short-term energy attack time to 2 ms (fast reaction to speech energy changes)
     DMIC_VAD_SET_STAT(VAD0, DMIC_VAD_STAT_2MS);
-    // Set long term attack time
+    // Configure long-term energy attack time to 64 ms (tracking background noise energy)
     DMIC_VAD_SET_LTAT(VAD0, DMIC_VAD_LTAT_64MS);
-    // Set short term power threshold.
+
+    // Configure power thresholds for speech detection
+    // Short-term power threshold: 0 dB (max variation required not to trigger activity)
     DMIC_VAD_SET_STTHRE(VAD0, DMIC_VAD_POWERTHRE_0DB);
-    // Set long term power threshold.
+    // Long-term power threshold: -90 dB
     DMIC_VAD_SET_LTTHRE(VAD0, DMIC_VAD_POWERTHRE_M90DB);
-    // Set deviation threshold.
+    // Deviation threshold: 0 dB (max variation required not to trigger activity)
     DMIC_VAD_SET_DEVTHRE(VAD0, DMIC_VAD_POWERTHRE_0DB);
+
+    // Disable VAD interrupt until system is fully initialized and ready
     NVIC_DisableIRQ(DMIC0VAD_IRQn);
 }
 
+// Perform stability checks by ensuring deviation and short-term power stay below thresholds.
+// Parameters:
+//   u32StableCount - number of stable readings required before proceeding.
 void VAD_WaitStable(uint32_t u32StableCount)
 {
+    // Repeat stability check u32StableCount times
     while (u32StableCount--)
     {
-        while ((DMIC_VAD_GET_DEV(VAD0) > DMIC_VAD_POWERTHRE_M80DB) || (DMIC_VAD_GET_STP(VAD0) > DMIC_VAD_POWERTHRE_M60DB)) {};
+        // Wait until deviation and short-term power drop below the -60dB threshold
+        while ((DMIC_VAD_GET_DEV(VAD0) > DMIC_VAD_POWERTHRE_M60DB) || (DMIC_VAD_GET_STP(VAD0) > DMIC_VAD_POWERTHRE_M60DB))
+        {
+            // busy-wait: drop into low-level loop until stable
+        }
 
+        // Clear any pending active flags to reset detection before next check
         while (DMIC_VAD_IS_ACTIVE(VAD0))
         {
             DMIC_VAD_CLR_ACTIVE(VAD0);
@@ -81,11 +105,11 @@ void VAD_WaitStable(uint32_t u32StableCount)
     }
 }
 
+// Handle VAD interrupt, clear active flag and wait for hardware to clear.
 NVT_ITCM void DMIC0VAD_IRQHandler()
 {
     uint32_t u32TimeOutCnt = SystemCoreClock; /* 1 second time-out */
 
-    //printf(",DMIC_VAD_GET_STP(VAD0) %lx,DMIC_VAD_GET_DEV(VAD0) %lx\n", DMIC_VAD_GET_STP(VAD0),DMIC_VAD_GET_DEV(VAD0));
     DMIC_VAD_CLR_ACTIVE(VAD0);
 
     __DSB();
@@ -96,13 +120,12 @@ NVT_ITCM void DMIC0VAD_IRQHandler()
         if (--u32TimeOutCnt == 0)
         {
             printf("Wait for VAD0 IntFlag time-out!\n");
+            break;
         }
     }
 }
 
-/*---------------------------------------------------------------------------------------------------------*/
-/*  Power Wake-up IRQ Handler                                                                              */
-/*---------------------------------------------------------------------------------------------------------*/
+// Handle power-down wake-up interrupt and clear wake-up flags.
 NVT_ITCM void PMC_IRQHandler(void)
 {
     uint32_t u32TimeOutCnt = SystemCoreClock; /* 1 second time-out */
@@ -121,6 +144,7 @@ NVT_ITCM void PMC_IRQHandler(void)
             if (--u32TimeOutCnt == 0)
             {
                 printf("Wait for PMC IntFlag time-out!\n");
+                break;
             }
         }
     }
@@ -131,108 +155,126 @@ NVT_ITCM void PMC_IRQHandler(void)
 /*---------------------------------------------------------------------------------------------------------*/
 void PowerDownFunction(void)
 {
+    // Unlock protected registers to allow configuration changes
     SYS_UnlockReg();
+    // Enable power-down wake-up interrupt in PMC
     PMC_ENABLE_WKINT();
+    // Enable PMC IRQ in NVIC to handle wake-up events
     NVIC_EnableIRQ(PMC_IRQn);
-    /* Switch SCLK to HIRC when power down */
+    // Switch system clock source to internal HIRC for low-power operation
     CLK_SetBusClock(CLK_SCLKSEL_SCLKSEL_HIRC, CLK_APLLCTL_APLLSRC_HIRC, 0);
-    /* Check if all the debug messages are finished */
+    // Wait until all debug UART transmissions have completed
     UART_WAIT_TX_EMPTY(DEBUG_PORT);
-    //MIRC and HIRC enable in power down mode
+    // Keep MIRC and HIRC oscillators active during power-down
     PMC_DISABLE_AOCKPD();
-    /* Set Power-down mode */
+    // Configure and set power-down mode to PL1
     PMC_SetPowerDownMode(PMC_NPD0, PMC_PLCTL_PLSEL_PL1);
 
-    // Set short term power threshold.
+    // Lower VAD short-term power threshold to -60 dB to avoid false triggers
     DMIC_VAD_SET_STTHRE(VAD0, DMIC_VAD_POWERTHRE_M60DB);
-    // Set deviation threshold.
+    // Lower VAD deviation threshold to -60 dB for stability
     DMIC_VAD_SET_DEVTHRE(VAD0, DMIC_VAD_POWERTHRE_M60DB);
+    // Wait for VAD signal to stabilize before entering power-down
     VAD_WaitStable(VAD_STABLECNT);
+    // Enable VAD interrupt to wake system on voice detection
     NVIC_EnableIRQ(DMIC0VAD_IRQn);
-    /* Enter to Power-down mode */
+    // Enter power-down mode; CPU sleeps until a wake-up interrupt
     PMC_PowerDown();
-    /* Enable PLL0 220MHZ clock from HIRC and switch SCLK clock source to PLL0 */
+    // Upon wake-up, restore system clock to APLL0 at 220 MHz
     CLK_SetBusClock(CLK_SCLKSEL_SCLKSEL_APLL0, CLK_APLLCTL_APLLSRC_HIRC, FREQ_220MHZ);
+    // Lock protected registers to secure configuration
     SYS_LockReg();
 }
 
+// Initialize system clocks, debug UART, DMIC module, and I/O multifunction pins.
 static void SYS_Init(void)
 {
-    /* Unlock protected registers */
+    // Unlock protected registers to allow configuration changes
     SYS_UnlockReg();
 
-    /*---------------------------------------------------------------------------------------------------------*/
-    /* Init System Clock                                                                                       */
-    /*---------------------------------------------------------------------------------------------------------*/
-    /* Enable PLL0 220MHZ clock from HIRC and switch SCLK clock source to PLL0 */
+    // Configure system clock to 220 MHz via PLL0 sourced from HIRC
     CLK_SetBusClock(CLK_SCLKSEL_SCLKSEL_APLL0, CLK_APLLCTL_APLLSRC_HIRC, FREQ_220MHZ);
 
-    /* Update System Core Clock */
-    /* User can use SystemCoreClockUpdate() to calculate SystemCoreClock. */
+    // Update SystemCoreClock variable to match the current core frequency
     SystemCoreClockUpdate();
 
-    /* Enable UART module clock */
+    // Enable clock for debug UART module to allow printf outputs
     SetDebugUartCLK();
 
-    // (1) Enable DMIC for VAD(Voice active detection)
-    // Select DMIC_VAD CLK source from HIRC.
+    // Configure DMIC module clock source to HIRC for VAD operation
     CLK_SetModuleClock(DMIC0_MODULE, CLK_DMICSEL_DMIC0SEL_HIRC, 0UL);
+    // Configure VAD module clock source to HIRC
     CLK_SetModuleClock(VAD0SEL_MODULE, CLK_DMICSEL_VAD0SEL_HIRC, 0UL);
-    // Enable DMIC_VAD clock.
+    // Enable DMIC_VAD module clock
     CLK_EnableModuleClock(VAD0SEL_MODULE);
-    // DMIC_VAD IPReset.
+    // Reset DMIC0 module to ensure a clean initial state
     SYS_ResetModule(SYS_DMIC0RST);
-    /*---------------------------------------------------------------------------------------------------------*/
-    /* Init I/O Multi-function                                                                                 */
-    /*---------------------------------------------------------------------------------------------------------*/
+
+    // Configure multi-function pins for debug UART
     SetDebugUartMFP();
 
+    // Enable GPIOB module clock for DMIC pin multiplexing
     CLK_EnableModuleClock(GPIOB_MODULE);
+    // Set DMIC0 data pin to PB.5
     SET_DMIC0_DAT_PB5();
+    // Set DMIC0 clock pin to PB.6
     SET_DMIC0_CLKLP_PB6();
+    // Set system clock output pin to PC.13 for external clock monitoring
     SET_CLKO_PC13();
+    // Enable clock output on the configured pin with no division
     CLK_EnableCKO(CLK_CLKOSEL_CLKOSEL_SYSCLK, 0, 1);
-    /* Lock protected registers */
+
+    // Lock protected registers to prevent unintended modifications
     SYS_LockReg();
 }
 
+// Entry point; initialize system, start VAD, enter power-down, and report wake-up status.
 int main(void)
 {
-    /* Init System, IP clock and multi-function I/O */
+    // Initialize system clocks and multi-function I/O pins
     SYS_Init();
 
-    /* Init Debug UART to 115200-8N1 for print message */
+    // Initialize debug UART (115200-8N1) for console output
     InitDebugUart();
 
 #if defined (__GNUC__) && !defined(__ARMCC_VERSION) && defined(OS_USE_SEMIHOSTING)
+    // Initialize semihosting for debug prints when applicable
     initialise_monitor_handles();
 #endif
 
     printf("System core clock = %d\n", SystemCoreClock);
     printf("DMIC_VAD power down/wake up sample code\n");
+
+    // Configure VAD hardware parameters and start detection
     VAD_Init();
     VAD_Start();
+    // Clear previous wake-up source flags
     g_u32PDWK = 0;
 
     printf(" Press any key to Enter Power-down !\n");
     getchar();
 
+    // Ensure background noise is stable before entering power-down
     VAD_WaitStable(VAD_STABLECNT);
     printf("Enter Power-down !\n");
+    // Enter low-power mode; CPU will wake on VAD or PMC interrupt
     PowerDownFunction();
 
-    while (!g_u32PDWK) {};
+    // Poll for power-down wake-up event
+    while (!g_u32PDWK) {}
 
     printf("Wake Up PASS\n");
 
+    // Clear any residual VAD active flags after wake-up
     while (DMIC_VAD_IS_ACTIVE(VAD0))
     {
         DMIC_VAD_CLR_ACTIVE(VAD0);
     }
 
+    // Stop VAD hardware and disable its interrupt
     VAD_Stop();
 
-    /* Got no where to go, just loop forever */
+    // Loop indefinitely after wake-up handling
     while (1) ;
 }
 

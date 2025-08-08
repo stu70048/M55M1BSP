@@ -4,6 +4,7 @@ Collect sample codes related to machine learning inference on M55M1 NPU.
 |Sample Code|Use case|Framework|Model|Description|Note|
 |:------------|:-------- |:----------|:------|:------------| :------------|
 |HandWriteRecognition|Hand writing recognition|TFLM|fdMobileNet|Handwriting recognition with MNIST datasets.||
+|ImageClassification|Image classification|TFLM|MobileNet|Demonstrate image classification.||
 |KeywordSpotting|Speech keyword spotting|TFLM|DS-CNN|Demonstrate speech keyword spotting.||
 |ObjectDetecion_FreeRTOS|Object detection|TFLM|yolo-fastest|Demonstrate object detection with FreeRTOS.||
 |VisualWakeWords|Person detection|TFLM|VWW|Demonstrate person detection.||

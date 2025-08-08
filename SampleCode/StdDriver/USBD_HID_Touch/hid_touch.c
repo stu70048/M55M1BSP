@@ -352,18 +352,15 @@ static uint32_t s_u32ReportCount = 0;
 static uint8_t s_u8IsX1Send04 = 0;
 void HID_UpdateTouchData(void)
 {
-    uint8_t *pu8Buf;
+    uint8_t u8Buf[14] = {0};
     static uint16_t u16X1 = 0x01f0, u16Y1 = 0x0100;
 
     if (s_u8EP2Ready)
     {
-
-        pu8Buf = (uint8_t *)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP2));
-
         /* Report ID 1 */
-        pu8Buf[0] = 1;
-        pu8Buf[2] = 0;
-        pu8Buf[8] = 1;
+        u8Buf[0] = 1;
+        u8Buf[2] = 0;
+        u8Buf[8] = 1;
 
 
         s_u32ReportCount++;
@@ -372,61 +369,61 @@ void HID_UpdateTouchData(void)
         {
             s_u8IsX1Send04 = 1;
 
-            pu8Buf[1] = 0x07;
-            pu8Buf[3] = u16X1 & 0xff;
-            pu8Buf[4] = (u16X1 >> 8) & 0xff;
-            pu8Buf[5] = u16Y1 & 0xff;
-            pu8Buf[6] = (u16Y1 >> 8) & 0xff;
-            pu8Buf[7] = 0x07;
-            pu8Buf[9] = u16X1 & 0xff;
-            pu8Buf[10] = (u16X1 >> 8) & 0xff;
-            pu8Buf[11] = (u16Y1 + 0x20) & 0xff;
-            pu8Buf[12] = ((u16Y1 + 0x20) >> 8) & 0xff;
-            pu8Buf[13] = 2;
+            u8Buf[1] = 0x07;
+            u8Buf[3] = u16X1 & 0xff;
+            u8Buf[4] = (u16X1 >> 8) & 0xff;
+            u8Buf[5] = u16Y1 & 0xff;
+            u8Buf[6] = (u16Y1 >> 8) & 0xff;
+            u8Buf[7] = 0x07;
+            u8Buf[9] = u16X1 & 0xff;
+            u8Buf[10] = (u16X1 >> 8) & 0xff;
+            u8Buf[11] = (u16Y1 + 0x20) & 0xff;
+            u8Buf[12] = ((u16Y1 + 0x20) >> 8) & 0xff;
+            u8Buf[13] = 2;
         }
         else if (s_u8IsX1Send04)     // touchUp
         {
             s_u8IsX1Send04 = 0;
-            pu8Buf[1] = 0x04;
-            pu8Buf[3] = 0x00;
-            pu8Buf[4] = 0x04;
-            pu8Buf[5] = u16Y1 & 0xff;
-            pu8Buf[6] = (u16Y1 >> 8) & 0xff;
-            pu8Buf[7] = 0x04;
-            pu8Buf[9] = 0x00;
-            pu8Buf[10] = 0x04;
-            pu8Buf[11] = (u16Y1 + 0x20) & 0xff;
-            pu8Buf[12] = ((u16Y1 + 0x20) >> 8) & 0xff;
-            pu8Buf[13] = 2;
+            u8Buf[1] = 0x04;
+            u8Buf[3] = 0x00;
+            u8Buf[4] = 0x04;
+            u8Buf[5] = u16Y1 & 0xff;
+            u8Buf[6] = (u16Y1 >> 8) & 0xff;
+            u8Buf[7] = 0x04;
+            u8Buf[9] = 0x00;
+            u8Buf[10] = 0x04;
+            u8Buf[11] = (u16Y1 + 0x20) & 0xff;
+            u8Buf[12] = ((u16Y1 + 0x20) >> 8) & 0xff;
+            u8Buf[13] = 2;
 
             if (u16Y1 == 0x0100)
             {
-                pu8Buf[5] = 0xE0;
-                pu8Buf[6] = 0x02;
-                pu8Buf[11] = 0x00;
-                pu8Buf[12] = 0x03;
+                u8Buf[5] = 0xE0;
+                u8Buf[6] = 0x02;
+                u8Buf[11] = 0x00;
+                u8Buf[12] = 0x03;
             }
             else
             {
-                pu8Buf[5] = (u16Y1 - 0x50) & 0xff;
-                pu8Buf[6] = ((u16Y1 - 0x50) >> 8) & 0xff;
-                pu8Buf[11] = ((u16Y1 + 0x20) - 0x50) & 0xff;
-                pu8Buf[12] = (((u16Y1 + 0x20) - 0x50) >> 8) & 0xff;
+                u8Buf[5] = (u16Y1 - 0x50) & 0xff;
+                u8Buf[6] = ((u16Y1 - 0x50) >> 8) & 0xff;
+                u8Buf[11] = ((u16Y1 + 0x20) - 0x50) & 0xff;
+                u8Buf[12] = (((u16Y1 + 0x20) - 0x50) >> 8) & 0xff;
             }
         }
         else
         {
-            pu8Buf[1] = 0;
-            pu8Buf[3] = 0;
-            pu8Buf[4] = 0;
-            pu8Buf[5] = 0;
-            pu8Buf[6] = 0;
-            pu8Buf[7] = 0;
-            pu8Buf[9] = 0;
-            pu8Buf[10] = 0;
-            pu8Buf[11] = 0;
-            pu8Buf[12] = 0;
-            pu8Buf[13] = 0;
+            u8Buf[1] = 0;
+            u8Buf[3] = 0;
+            u8Buf[4] = 0;
+            u8Buf[5] = 0;
+            u8Buf[6] = 0;
+            u8Buf[7] = 0;
+            u8Buf[9] = 0;
+            u8Buf[10] = 0;
+            u8Buf[11] = 0;
+            u8Buf[12] = 0;
+            u8Buf[13] = 0;
         }
 
         if ((s_u32ReportCount % 6) == 0)
@@ -442,6 +439,7 @@ void HID_UpdateTouchData(void)
         }
 
         s_u8EP2Ready = 0;
+        USBD_MemCopy((uint8_t *)(USBD_BUF_BASE + USBD_GET_EP_BUF_ADDR(EP2)), u8Buf, 14);
         USBD_SET_PAYLOAD_LEN(EP2, 14);
     }
 }

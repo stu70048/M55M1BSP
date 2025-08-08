@@ -12,18 +12,14 @@
 #include "NuMicro.h"
 #include "MPU6500.h"
 
-#define LPI2C0_LPPDMA_TX_CH         0
-#define LPI2C0_LPPDMA_RX_CH         1
+#define LPI2C0_LPPDMA_TX_CH         1
+#define LPI2C0_LPPDMA_RX_CH         0
 #define SG_TX_LENGTH                3
 #define SG_RX_LENGTH                1
 #define MAX_SG_TAB_NUM              1
 #define LPPDMA_ENABLE_CHANNEL(x)    (LPPDMA->CHCTL |= (1 << x))
 #define I2C_TARGET_ADDR             (MPU6500_DEVICE_ID)
-#define DESC_SC_TX_ADDRESS          0x20310800
-#define DESC_SC_RX_ADDRESS          0x20310820
 #define GSensor_Threshold           300
-#define SrcArray_Address            0x20310100
-#define DstArray_Address            (uint32_t)(&AWF->DAT)
 
 uint32_t g_u32ACCCount, g_u32HTHValue, g_u32LTHValue, g_u32WBINITValue;
 
@@ -35,12 +31,28 @@ typedef struct dma_desc_t
     uint32_t offset;
 } DMA_DESC_T;
 
+/*
+    I/O buffer variable declaration:
+    - For power-down mode use, configure at the LPSRAM address
+    - Align the I/O buffer with the DCache address using aligned(DCACHE_LINE_SIZE)
+    - Ensure that the size of the I/O buffer is aligned with the size of the DCache(32 bytes), calculated as follows:
+    +-----------------------+---------------------------------+
+    |  I/O buffer name      |            Size                 |
+    +-----------------------+---------------------------------+
+    | DMA_DESC_SC_TX        |  16 * MAX_SG_TAB_NUM * 2 bytes  |
+    | DMA_DESC_SC_RX        |  16 * MAX_SG_TAB_NUM * 2 bytes  |
+    | I2CArray              |  1  * MAX_SG_TAB_NUM * 32 bytes |
+    +-----------------------+---------------------------------+
+*/
+
 #if (NVT_DCACHE_ON == 1)
-    static DMA_DESC_T *DMA_DESC_SC_TX __attribute__((aligned(DCACHE_LINE_SIZE))) = (DMA_DESC_T *)DESC_SC_TX_ADDRESS;
-    static DMA_DESC_T *DMA_DESC_SC_RX __attribute__((aligned(DCACHE_LINE_SIZE))) = (DMA_DESC_T *)DESC_SC_RX_ADDRESS;
+    static DMA_DESC_T DMA_DESC_SC_TX[MAX_SG_TAB_NUM * 2] __attribute__((section(".lpSram"), aligned(DCACHE_LINE_SIZE)));
+    static DMA_DESC_T DMA_DESC_SC_RX[MAX_SG_TAB_NUM * 2] __attribute__((section(".lpSram"), aligned(DCACHE_LINE_SIZE)));
+    static uint8_t I2CArray[MAX_SG_TAB_NUM * 32] __attribute__((section(".lpSram"), aligned(DCACHE_LINE_SIZE)));
 #else
-    static DMA_DESC_T *DMA_DESC_SC_TX = (DMA_DESC_T *)DESC_SC_TX_ADDRESS;
-    static DMA_DESC_T *DMA_DESC_SC_RX = (DMA_DESC_T *)DESC_SC_RX_ADDRESS;
+    static DMA_DESC_T DMA_DESC_SC_TX[MAX_SG_TAB_NUM] __attribute__((section(".lpSram")));
+    static DMA_DESC_T DMA_DESC_SC_RX[MAX_SG_TAB_NUM] __attribute__((section(".lpSram")));
+    static uint8_t I2CArray[MAX_SG_TAB_NUM * SG_TX_LENGTH] __attribute__((section(".lpSram")));
 #endif
 
 uint32_t lppdma_channel_set(uint8_t ch)
@@ -117,29 +129,29 @@ void BuildRxSCTab(uint32_t u32tabNum, uint32_t u32RxfSize, uint32_t pu8StarAddr)
     DMA_DESC_SC_RX[u32tabNum - 1].offset = (uint32_t)&DMA_DESC_SC_RX[0];
 }
 
-void LPDMA_SC_trigger_init(uint32_t PDMAReq, uint8_t u8TestCh, uint32_t u8TestLen)
+void LPDMA_SC_trigger_init(uint32_t PDMAReq, uint8_t u8TestCh, uint32_t u32TestLen)
 {
-    DSCT_T *ch_dsct;
+    DSCT_T *pDSCT;
 
     /* Enable LPPDMA channel */
     LPPDMA_ENABLE_CHANNEL(u8TestCh);
 
-    ch_dsct = (DSCT_T *) lppdma_channel_set(u8TestCh);
+    pDSCT = (DSCT_T *) lppdma_channel_set(u8TestCh);
 
     if (PDMAReq == LPPDMA_LPI2C0_TX)
     {
         /* TX scatter-gather initialize */
-        BuildTxSCTab(MAX_SG_TAB_NUM, SG_TX_LENGTH, SrcArray_Address);
-        ch_dsct->CTL = PDMA_OP_SCATTER;
-        ch_dsct->NEXT = (uint32_t)&DMA_DESC_SC_TX[0];
+        BuildTxSCTab(MAX_SG_TAB_NUM, u32TestLen, (uint32_t)(&I2CArray));
+        pDSCT->CTL = PDMA_OP_SCATTER;
+        pDSCT->NEXT = (uint32_t)&DMA_DESC_SC_TX[0];
         LPPDMA->REQSEL0_3 = (LPPDMA->REQSEL0_3 & ~ LPPDMA_REQSEL0_3_REQSRC1_Msk) | (LPPDMA_LPI2C0_TX) << 8;
     }
     else
     {
         /* RX scatter-gather initialize */
-        BuildRxSCTab(MAX_SG_TAB_NUM, SG_RX_LENGTH, DstArray_Address);
-        ch_dsct->CTL = PDMA_OP_SCATTER;
-        ch_dsct->NEXT = (uint32_t)&DMA_DESC_SC_RX[0];
+        BuildRxSCTab(MAX_SG_TAB_NUM, u32TestLen, (uint32_t)(&AWF->DAT));
+        pDSCT->CTL = PDMA_OP_SCATTER;
+        pDSCT->NEXT = (uint32_t)&DMA_DESC_SC_RX[0];
         LPPDMA->REQSEL0_3 = (LPPDMA->REQSEL0_3 & ~ LPPDMA_REQSEL0_3_REQSRC0_Msk) | (LPPDMA_LPI2C0_RX) << 0;
     }
 }
@@ -170,35 +182,29 @@ void LPPDMA_LPI2C_Init(void)
 {
     uint32_t  i;
 
-#if (NVT_DCACHE_ON == 1)
-    static uint8_t *SrcArray __attribute__((aligned(DCACHE_LINE_SIZE))) = (uint8_t *) SrcArray_Address;
-#else
-    uint8_t *SrcArray = (uint8_t *) SrcArray_Address;
-#endif
-
     /* Device write command */
     for (i = 0; i < MAX_SG_TAB_NUM; i++)
     {
-        SrcArray[i * SG_TX_LENGTH] = (I2C_TARGET_ADDR << 1);
+        I2CArray[i * SG_TX_LENGTH] = (I2C_TARGET_ADDR << 1);
     }
 
     /* Device data command */
     for (i = 0; i < MAX_SG_TAB_NUM; i++)
     {
-        SrcArray[i * SG_TX_LENGTH + 1] = ACCEL_XOUT_H;
+        I2CArray[i * SG_TX_LENGTH + 1] = ACCEL_XOUT_H;
     }
 
     /* Device read command */
     for (i = 0; i < MAX_SG_TAB_NUM; i++)
     {
-        SrcArray[i * SG_TX_LENGTH + 2] = ((I2C_TARGET_ADDR << 1) | 1);
+        I2CArray[i * SG_TX_LENGTH + 2] = ((I2C_TARGET_ADDR << 1) | 1);
     }
 
     /* LPPDMA TX initialize */
-    LPDMA_SC_trigger_init(LPPDMA_LPI2C0_RX, LPI2C0_LPPDMA_TX_CH, 3);
+    LPDMA_SC_trigger_init(LPPDMA_LPI2C0_TX, LPI2C0_LPPDMA_TX_CH, SG_TX_LENGTH);
 
     /* LPPDMA TX initialize */
-    LPDMA_SC_trigger_init(LPPDMA_LPI2C0_TX, LPI2C0_LPPDMA_RX_CH, 1);
+    LPDMA_SC_trigger_init(LPPDMA_LPI2C0_RX, LPI2C0_LPPDMA_RX_CH, SG_RX_LENGTH);
 
     /* LPI2C trigger initialize */
     LPI2C_Trigger_Init(LPI2C_RANDOM_REPEAT_STA, LPI2C_TRGSRC_LPTMR0, SG_RX_LENGTH, SG_TX_LENGTH);

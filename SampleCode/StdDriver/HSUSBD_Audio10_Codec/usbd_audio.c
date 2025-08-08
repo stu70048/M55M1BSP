@@ -939,10 +939,6 @@ void AudioStartPlay(uint32_t u32SampleRate)
     /* Enable PDMA channel */
     PDMA0->CHCTL |= (1 << PDMA_I2S_TX_CH);
     printf("Start Play ... \n");
-
-    // workaround for PDMA suspend
-    //    PDMA0->DSCT[PDMA_I2S_TX_CH].CTL = 0;
-    //    PDMA0->DSCT[PDMA_I2S_TX_CH].CTL = 2;
 }
 
 

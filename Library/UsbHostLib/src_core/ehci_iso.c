@@ -345,6 +345,11 @@ static void  write_itd_info(UTR_T *utr, iTD_T *itd)
     EP_INFO_T  *ep = utr->ep;               /* reference to isochronous endpoint          */
     uint32_t   buff_page_addr;
     int        i;
+    uint32_t mult;
+
+    mult = (ep->wMaxPacketSize + 1023) / 1024;
+
+    if (mult == 0) mult = 1;
 
     buff_page_addr = itd->buff_base & 0xFFFFF000;     /* 4K page                          */
 
@@ -355,19 +360,23 @@ static void  write_itd_info(UTR_T *utr, iTD_T *itd)
 
     /* EndPtr  R  Device Address        */
     itd->Bptr[0] |= (udev->dev_num) | ((ep->bEndpointAddress & 0xF) << ITD_EP_NUM_Pos);
-    itd->Bptr[1] |= ep->wMaxPacketSize;               /* Maximum Packet Size              */
+    itd->Bptr[1] |= ep->wMaxPacketSize / mult;             /* Maximum Packet Size              */
 
     if ((ep->bEndpointAddress & EP_ADDR_DIR_MASK) == EP_ADDR_DIR_IN) /* I/O               */
         itd->Bptr[1] |= ITD_DIR_IN;
     else
         itd->Bptr[1] |= ITD_DIR_OUT;
 
-    itd->Bptr[2] |= (ep->wMaxPacketSize + 1023) / 1024;              /* Mult              */
+    itd->Bptr[2] |= mult;                                   /* Mult              */
+
+    __DSB();
+
 }
 
 static void  write_itd_micro_frame(UTR_T *utr, int fidx, iTD_T *itd, int mf)
 {
     uint32_t   buff_addr;
+
 
     buff_addr = (uint32_t)(utr->iso_buff[fidx]); /* xfer buffer start address of this frame */
 
@@ -375,6 +384,8 @@ static void  write_itd_micro_frame(UTR_T *utr, int fidx, iTD_T *itd, int mf)
                            ((utr->iso_xlen[fidx] & 0xFFF) << ITD_XLEN_Pos) |              /* Transaction Length */
                            ((buff_addr & 0xFFFFF000) - (itd->buff_base & 0xFFFFF000)) |   /* PG */
                            (buff_addr & 0xFFF);                                           /* Transaction offset */
+
+    __DSB();
 }
 
 static void remove_iso_ep_from_list(ISO_EP_T *iso_ep)

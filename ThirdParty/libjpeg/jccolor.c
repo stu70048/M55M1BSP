@@ -13,7 +13,9 @@
 #include "jinclude.h"
 #include "jpeglib.h"
 
-
+extern void jsimd_rgb_ycc_convert_helium(j_compress_ptr cinfo,
+		 JSAMPARRAY input_buf, JSAMPIMAGE output_buf,
+		 JDIMENSION output_row, int num_rows);
 /* Private subobject */
 
 typedef struct {
@@ -125,8 +127,9 @@ rgb_ycc_start (j_compress_ptr cinfo)
     rgb_ycc_tab[i+B_CR_OFF] = (-FIX(0.081312411)) * i;
   }
 }
-
-
+#include <stdint.h>
+extern uint64_t GetSysTickCycleCount(void);
+uint64_t start, elapsed;
 /*
  * Convert some rows of samples to the JPEG colorspace.
  *
@@ -162,6 +165,7 @@ rgb_ycc_convert (j_compress_ptr cinfo,
       r = GETJSAMPLE(inptr[RGB_RED]);
       g = GETJSAMPLE(inptr[RGB_GREEN]);
       b = GETJSAMPLE(inptr[RGB_BLUE]);
+			
       /* If the inputs are 0..MAXJSAMPLE, the outputs of these equations
        * must be too; we do not need an explicit range-limiting operation.
        * Hence the value being shifted is never negative, and we don't
@@ -180,6 +184,7 @@ rgb_ycc_convert (j_compress_ptr cinfo,
 		((ctab[r+R_CR_OFF] + ctab[g+G_CR_OFF] + ctab[b+B_CR_OFF])
 		 >> SCALEBITS);
       inptr += RGB_PIXELSIZE;
+			
     }
   }
 }
@@ -528,7 +533,11 @@ jinit_color_converter (j_compress_ptr cinfo)
     switch (cinfo->in_color_space) {
     case JCS_RGB:
       cconvert->pub.start_pass = rgb_ycc_start;
-      cconvert->pub.color_convert = rgb_ycc_convert;
+#ifdef WITH_JPEGACC
+		  cconvert->pub.color_convert = jsimd_rgb_ycc_convert_helium;
+#else
+		  cconvert->pub.color_convert = rgb_ycc_convert;
+#endif		
       break;
     case JCS_YCbCr:
       cconvert->pub.color_convert = null_convert;

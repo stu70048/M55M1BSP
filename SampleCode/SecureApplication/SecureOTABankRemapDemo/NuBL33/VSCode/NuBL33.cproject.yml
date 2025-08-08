@@ -1,6 +1,6 @@
 project:
   packs:
-    - pack: Nuvoton::NuMicro_DFP
+    - pack: Nuvoton::NuMicroM55_DFP
   setups:
     - output:
         # bin, elf, hex, lib
@@ -77,16 +77,24 @@ project:
           for-compiler: AC6
         - file: ../../NuBL32/lib/libNuBL32.a
           for-compiler: GCC
-  executes:   # Scheduled for CMSIS-Toolbox 2.4 - Q2'24
-    - execute: Generate_Signed_FW_Image
+
+  executes:
+    - execute: HelloPython
+      run: python -V
+      always: # always generate signed fw image
+    - execute: GenerateSignedImageV1
       for-context: .v1
-      run: ../../../FwSign.bat $input$ ../../FwKey/ECC-P256.pem 1
-      always:             # always generate signed fw image
+      run: python ../../../../../../Tool/imgtool.py sign -k ../../FwKey/ECC-P256.pem --public-key-format hash --align 4 -v 1.2.3 -H 0x400 --pad-header -S 0x40000 -s 0 $input$ $output$
+      always: # always generate signed fw image
       input:
-        - $bin(NuBL33)$   # fw image binary
-    - execute: Generate_Signed_FW_Image
+        - $bin(NuBL33)$
+      output:
+        - $OutDir()$/NuBL33v1_signed.bin # signed fw image binary
+    - execute: GenerateSignedImageV2
       for-context: .v2
-      run: ../../../FwSign.bat $input$ ../../FwKey/ECC-P256.pem 2
-      always:              # always generate signed fw image
+      run: python ../../../../../../Tool/imgtool.py sign -k ../../FwKey/ECC-P256.pem --public-key-format hash --align 4 -v 1.2.3 -H 0x400 --pad-header -S 0x40000 -s 1 $input$ $output$
+      always: # always generate signed fw image
       input:
-        - $bin(NuBL33)$    # fw image binary
+        - $bin(NuBL33)$
+      output:
+        - $OutDir()$/NuBL33v2_signed.bin # signed fw image binary
