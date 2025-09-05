@@ -22,6 +22,7 @@
   Driver_I2C3           | I2C3
   Driver_I2C4           | LPI2C0
   Driver_I2C5           | UI2C0
+  Driver_I2C6           | I3C0
 */
 
 // <o0.0> I2C0 (I2C0)
@@ -32,18 +33,21 @@
 // <i> Configuration settings for Driver_I2C2
 // <o3.0> I2C3 (I2C3)
 // <i> Configuration settings for Driver_I2C3
-// <o3.0> I2C4 (LPI2C0)
+// <o4.0> I2C4 (LPI2C0)
 // <i> Configuration settings for Driver_I2C4
-// <o3.0> I2C5 (UI2C0)
+// <o5.0> I2C5 (UI2C0)
 // <i> Configuration settings for Driver_I2C5
+// <o6.0> I2C6 (I3C0)
+// <i> Configuration settings for Driver_I2C6
 
 
 #define RTE_I2C0  1
-#define RTE_I2C1                        1
+#define RTE_I2C1  1
 #define RTE_I2C2  1
 #define RTE_I2C3  1
 #define RTE_I2C4  1
 #define RTE_I2C5  1
+#define RTE_I2C6  1
 
 // <<< end of configuration section >>>
 
