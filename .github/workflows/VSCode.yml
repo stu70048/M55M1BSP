@@ -1,9 +1,9 @@
 name: VSCode building
 
 on:
-  #push:
-  #  branches-ignore:
-  #    - main
+  push:
+    branches-ignore:
+      - main
   pull_request:
     branches-ignore:
       - main
@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest-l]
+        os: [ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +24,7 @@ jobs:
         run: choco install jq python
 
       - name: Install Packages on Linux
-        if: matrix.os == 'ubuntu-latest-l'
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y python3 python3-pip python-is-python3
@@ -88,42 +88,3 @@ jobs:
             echo "🎉 All builds succeeded!"
           fi
 
-      - name: Prepare failed logs for email
-        id: prepare_logs
-        shell: bash
-        if: failure() # only runs if previous step failed
-        run: |
-          if [[ -f failed_logs.txt ]]; then
-            logs=$(cat failed_logs.txt)
-            echo "logs=$logs" >> "$GITHUB_OUTPUT"
-
-            numbered_logs=""
-            IFS=',' read -ra logs <<< "$(cat failed_logs.txt)"
-            i=1
-            for log in "${logs[@]}"; do
-              numbered_logs+="[$i] $log\n"
-              ((i++))
-            done
-            echo -e "msglogs<<EOF\n$numbered_logs\nEOF" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Send mail
-        if: failure()
-        uses: dawidd6/action-send-mail@v5
-        with:
-          connection_url: ${{ secrets.MAIL_CONNECTION }}
-          subject: ${{ github.repository }} [${{ github.ref_name }}] Job ${{ job.status }}
-          to: ${{ secrets.MAIL_TO }}
-          #cc: ${{ secrets.MAIL_CC }}
-          from: Github Action Workflow <wosayttn@gmail.com>
-          attachments: ${{ steps.prepare_logs.outputs.logs }}
-          body: |
-            Hello,
-
-            The build has completed. Please find the attached log file for details.
-
-            Failure:
-            ${{ steps.prepare_logs.outputs.msglogs }}
-
-            Best regards,
-            NuMicro Actions
