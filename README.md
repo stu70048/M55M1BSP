@@ -4,6 +4,9 @@ To experience the powerful features of M55M1 series in few minutes, please selec
 
 In Extentions of Visual Studio Code, please install Nuvoton NuMicro Cortex-M Pack. It is a complete development toolkit for Nuvoton's NuMicro Cortex-M microcontrollers.
 
+Please note that M55M1 Series CMSIS BSP enables CPU Level-1 I/D-Cache by default but does not provide Cache coherence.
+
+
 ## .\Document\
 
 - CMSIS.html<br>
@@ -20,7 +23,7 @@ In Extentions of Visual Studio Code, please install Nuvoton NuMicro Cortex-M Pac
 
 - CMSIS<br>
 	Cortex® Microcontroller Software Interface Standard (CMSIS) V6.1.0 definitions by Arm® Corp.<p>
-	M55M1 CMSIS-Driver implementations and RTE_Device headers are in the "Driver\Source" sub-folder. Please add source code files and copy RTE_Device header files into your project. Projects can define PRJ_RTE_DEVICE_HEADER macro to include the private RTE_Device.h.
+	M55M1 CMSIS-Drivers do not provide thread safety and Cache coherence. The source and RTE_Device header files are in the "Driver\Source" sub-folder. Please add source files and copy RTE_Device header files into your project. Projects can define PRJ_RTE_DEVICE_HEADER macro to include the private RTE_Device.h.
 
 - Commu<br>
 	Helper functions of communication protocols, e.g., XMODEM.
@@ -63,7 +66,7 @@ In Extentions of Visual Studio Code, please install Nuvoton NuMicro Cortex-M Pac
 	
 - Hard\_Fault\_Sample<br>
 	Show hard fault information when hard fault happened.<p>
-	The hard fault handler show some information included program counter, which is the address where the processor is executing when the hard fault occur. The listing file (or map file) can show what function and instruction that is.<p>
+	The hard fault handler shows some information including program counter, which is the address where the processor is executed when the hard fault occurs. The listing file (or map file) can show what function and instruction that is.<p>
 	It also shows the Link Register (LR), which contains the return address of the last function call. It can show the status where CPU comes from to get to this point.
 
 - ISP<br>
@@ -75,7 +78,7 @@ In Extentions of Visual Studio Code, please install Nuvoton NuMicro Cortex-M Pac
 	- **NuEdgeWise**: https://github.com/OpenNuvoton/NuEdgeWise
 	- **ML_M55M1_SampleCode**: https://github.com/OpenNuvoton/ML_M55M1_SampleCode (Private repository, please contact [Nuvoton support team](https://www.nuvoton.com/ai/contact-us/).)
 
-- NuMaker_M55M1<br>
+- NuMaker-M55M1<br>
 	Sample code for NuMaker-M55M1 board.
 
 - PowerDelivery<br>
@@ -144,7 +147,7 @@ In Extentions of Visual Studio Code, please install Nuvoton NuMicro Cortex-M Pac
 ## .\Tool\
 
 - imgtool.exe<br>
-- imgtool.py<br>
+  imgtool.py<br>
 	Used to perform the operations that are necessary to manage keys and sign images.
 
 - OTAServerDemo_v2.2.1.apk<br>

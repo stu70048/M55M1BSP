@@ -292,7 +292,7 @@ static const USART_Info_t *USART_GetInfo(const UART_HWTypeDef *huart)
 
     return ptr_usart_info;
 }
-
+#if 0
 /**
   \fn          void USARTn_Set_Pin (const UART_HWTypeDef *huart)
   \brief       Set USARTn multi function pin
@@ -301,6 +301,7 @@ static const USART_Info_t *USART_GetInfo(const UART_HWTypeDef *huart)
 static void USARTn_Set_Pin(const UART_HWTypeDef *huart)
 {
     //NULL....
+    (void)(huart);
 }
 
 /**
@@ -311,8 +312,9 @@ static void USARTn_Set_Pin(const UART_HWTypeDef *huart)
 static void USARTn_Clear_Pin(const UART_HWTypeDef *huart)
 {
     //NULL....
+    (void)(huart);
 }
-
+#endif
 typedef struct
 {
     UART_HWTypeDef *huart;
@@ -357,8 +359,6 @@ static S_IRQ_SEL_t *ClockIRQSelector(UART_HWTypeDef *huart)
 static void USARTn_Set_ClockNVIC(const USART_Info_t *ptr_usart_info)
 {
     SC_T *huart = ptr_usart_info->ptr_UART;
-    /* Unlock protected registers */
-    SYS_UnlockReg();
 
     S_IRQ_SEL_t *irq_sel;
 
@@ -369,6 +369,9 @@ static void USARTn_Set_ClockNVIC(const USART_Info_t *ptr_usart_info)
         printf("Error! unable select UART clock table \n");
         return;
     }
+
+    /* Unlock protected registers */
+    SYS_UnlockReg();
 
     NVIC_EnableIRQ(irq_sel->irq_n);
 
@@ -384,8 +387,6 @@ static void USARTn_Set_ClockNVIC(const USART_Info_t *ptr_usart_info)
 static void USARTn_Clear_ClockNVIC(const USART_Info_t *ptr_usart_info)
 {
     SC_T *huart = ptr_usart_info->ptr_UART;
-    /* Unlock protected registers */
-    SYS_UnlockReg();
 
     S_IRQ_SEL_t *irq_sel;
 
@@ -396,6 +397,9 @@ static void USARTn_Clear_ClockNVIC(const USART_Info_t *ptr_usart_info)
         printf("Error! unable select SC irq table \n");
         return;
     }
+
+    /* Unlock protected registers */
+    SYS_UnlockReg();
 
     NVIC_DisableIRQ(irq_sel->irq_n);
 
@@ -423,6 +427,8 @@ static ARM_DRIVER_VERSION USART_GetVersion(void)
 */
 static ARM_USART_CAPABILITIES USARTn_GetCapabilities(const USART_Info_t *ptr_usart_info)
 {
+    (void)(ptr_usart_info);
+
     ARM_USART_CAPABILITIES driver_capabilities;
 
     // Clear capabilities structure
@@ -674,7 +680,8 @@ static uint32_t USARTn_GetTxCount(const USART_Info_t *ptr_usart_info)
 {
     uint32_t cnt;
     RW_Info_t *ptr_rw_info = ptr_usart_info->ptr_rw_info;
-    TX_Trans_t *ptr_tx_trans = &ptr_rw_info->tx_trans;
+    //TBD..
+    //TX_Trans_t *ptr_tx_trans = &ptr_rw_info->tx_trans;
 
     if (ptr_rw_info->drv_status.powered == 0U)
     {
@@ -697,7 +704,8 @@ static uint32_t USARTn_GetRxCount(const USART_Info_t *ptr_usart_info)
     uint32_t cnt;
 
     RW_Info_t *ptr_rw_info = ptr_usart_info->ptr_rw_info;
-    RX_Trans_t *ptr_rx_trans = &ptr_rw_info->rx_trans;
+    //TBD..
+    //RX_Trans_t *ptr_rx_trans = &ptr_rw_info->rx_trans;
 
     if (ptr_rw_info->drv_status.powered == 0U)
     {
@@ -721,7 +729,6 @@ static int32_t USARTn_Control(const USART_Info_t *ptr_usart_info, uint32_t contr
 {
     ARM_USART_STATUS status;
     uint8_t          parity_bits;
-    uint8_t          data_bits;
     uint32_t         word_len;
     uint32_t         parity = UART_PARITY_NONE;
     uint32_t         stop_bits = UART_STOP_BIT_1;
@@ -829,12 +836,10 @@ static int32_t USARTn_Control(const USART_Info_t *ptr_usart_info, uint32_t contr
         parity_bits = 1U;
     }
 
-    data_bits = 0U;
 
     switch (control & ARM_USART_DATA_BITS_Msk)    // --- Mode Parameters: Data Bits
     {
         case ARM_USART_DATA_BITS_6:                 // Data bits: 6
-            data_bits = 6;
 
             if (parity_bits == 1U)
             {
@@ -848,7 +853,6 @@ static int32_t USARTn_Control(const USART_Info_t *ptr_usart_info, uint32_t contr
             break;
 
         case ARM_USART_DATA_BITS_7:                 // Data bits: 7
-            data_bits = 7;
 
             if (parity_bits == 1U)
             {
@@ -862,7 +866,6 @@ static int32_t USARTn_Control(const USART_Info_t *ptr_usart_info, uint32_t contr
             break;
 
         case ARM_USART_DATA_BITS_8:                 // Data bits: 8
-            data_bits = 8;
 
             if (parity_bits == 1U)
             {

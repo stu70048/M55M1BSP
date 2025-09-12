@@ -25,7 +25,7 @@
  * @copyright Copyright (C) 2024 Nuvoton Technology Corp. All rights reserved.
  ******************************************************************************/
 
-/*! \page Dirver_USART USART
+/*! \page Dirver_USART UART
 
 # Revision History
 
@@ -453,14 +453,6 @@ static S_IRQ_SEL_t *IRQSelector(USART_HandleTypeDef *huart)
 static void USARTn_Set_NVIC(const USART_Info_t *ptr_usart_info)
 {
     USART_HandleTypeDef *huart = ptr_usart_info->ptr_USART;
-    /* Unlock protected registers */
-    SYS_UnlockReg();
-
-    if ((ptr_usart_info->pdma_tx_used) || (ptr_usart_info->pdma_rx_used))
-    {
-        CLK_EnableModuleClock(PDMA0_MODULE);
-        CLK_EnableModuleClock(PDMA1_MODULE);
-    }
 
     S_IRQ_SEL_t *irq_sel;
 
@@ -470,6 +462,15 @@ static void USARTn_Set_NVIC(const USART_Info_t *ptr_usart_info)
     {
         printf("Error! unable select UART irq table \n");
         return;
+    }
+
+    /* Unlock protected registers */
+    SYS_UnlockReg();
+
+    if ((ptr_usart_info->pdma_tx_used) || (ptr_usart_info->pdma_rx_used))
+    {
+        CLK_EnableModuleClock(PDMA0_MODULE);
+        CLK_EnableModuleClock(PDMA1_MODULE);
     }
 
     NVIC_EnableIRQ(irq_sel->irq_n);
@@ -487,9 +488,6 @@ static void USARTn_Clear_NVIC(const USART_Info_t *ptr_usart_info)
 {
     USART_HandleTypeDef *huart = ptr_usart_info->ptr_USART;
 
-    /* Unlock protected registers */
-    SYS_UnlockReg();
-
     S_IRQ_SEL_t *irq_sel;
 
     irq_sel = IRQSelector(huart);
@@ -499,6 +497,9 @@ static void USARTn_Clear_NVIC(const USART_Info_t *ptr_usart_info)
         printf("Error! unable select UART irq table \n");
         return;
     }
+
+    /* Unlock protected registers */
+    SYS_UnlockReg();
 
     NVIC_DisableIRQ(irq_sel->irq_n);
 
@@ -583,6 +584,7 @@ static ARM_DRIVER_VERSION USART_GetVersion(void)
 */
 static ARM_USART_CAPABILITIES USARTn_GetCapabilities(const USART_Info_t *ptr_usart_info)
 {
+    (void)ptr_usart_info;
     ARM_USART_CAPABILITIES driver_capabilities;
 
     // Clear capabilities structure
@@ -614,7 +616,7 @@ static int32_t USARTn_Initialize(const USART_Info_t *ptr_usart_info, ARM_USART_S
 
     if (ptr_usart_info->pdma_rx_used)
     {
-        if ((ptr_rw_info->pdma_rx_chan_id >= 0) && (ptr_rw_info->pdma_rx_chan_id < PDMA_CH_MAX * PDMA_CNT))
+        if ((ptr_rw_info->pdma_rx_chan_id >= 0) && ((uint32_t)ptr_rw_info->pdma_rx_chan_id < PDMA_CH_MAX * PDMA_CNT))
         {
             nu_pdma_channel_terminate(ptr_rw_info->pdma_rx_chan_id);
             nu_pdma_channel_free(ptr_rw_info->pdma_rx_chan_id);
@@ -623,7 +625,7 @@ static int32_t USARTn_Initialize(const USART_Info_t *ptr_usart_info, ARM_USART_S
 
     if (ptr_usart_info->pdma_tx_used)
     {
-        if ((ptr_rw_info->pdma_tx_chan_id >= 0) && (ptr_rw_info->pdma_tx_chan_id < PDMA_CH_MAX * PDMA_CNT))
+        if ((ptr_rw_info->pdma_tx_chan_id >= 0) && ((uint32_t)ptr_rw_info->pdma_tx_chan_id < PDMA_CH_MAX * PDMA_CNT))
         {
             nu_pdma_channel_terminate(ptr_rw_info->pdma_tx_chan_id);
             nu_pdma_channel_free(ptr_rw_info->pdma_tx_chan_id);
@@ -696,10 +698,6 @@ static int32_t USARTn_PowerControl(const USART_Info_t *ptr_usart_info, ARM_POWER
             ptr_rw_info->rx_framing_error = 0U;
             ptr_rw_info->rx_parity_error  = 0U;
 
-#ifndef RTE_CMSIS_DV_USART
-            UART_SetTimeoutCnt(ptr_usart_info->ptr_USART, 255);
-            UART_BUS_IDLE_TIMEOUT_ENABLE(ptr_usart_info->ptr_USART);
-#endif
             UART_Open(ptr_usart_info->ptr_USART, 0);
 
             // Initialize interrupts and peripheral
@@ -1002,6 +1000,7 @@ static int32_t USARTn_Control(const USART_Info_t *ptr_usart_info, uint32_t contr
     uint32_t         stop_bits = UART_STOP_BIT_1;
     uint32_t         baud_rate = 0;
     RW_Info_t *ptr_rw_info = ptr_usart_info->ptr_rw_info;
+    (void)data_bits;
 
     if (ptr_usart_info->ptr_rw_info->drv_status.powered == 0U)
     {
