@@ -1,10 +1,10 @@
 # M55M1 Series CMSIS BSP
 
-To experience the powerful features of M55M1 series in few minutes, please select the sample code to download and execute on the NuMaker-M55M1 board. Open the project files to build them with Keil® MDK, IAR, NuEclipse or VSCode, and then download and trace them on the NuMaker board to see how it works.
+To experience the powerful features of M55M1 series in few minutes, please select the sample code to download and execute on the NuMaker-M55M1 board. Open the project files to build them with Keil® MDK, IAR, NuEclipse or VS Code, and then download and trace them on the NuMaker board to see how it works.
 
 In Extentions of Visual Studio Code, please install Nuvoton NuMicro Cortex-M Pack. It is a complete development toolkit for Nuvoton's NuMicro Cortex-M microcontrollers.
 
-Please note that M55M1 Series CMSIS BSP enables CPU Level-1 I/D-Cache by default but does not provide Cache coherence.
+Please note that M55M1 Series CMSIS BSP enables CPU Level-1 I/D-Cache by default but does not guarantee Cache coherence.
 
 
 ## .\Document\
@@ -23,7 +23,7 @@ Please note that M55M1 Series CMSIS BSP enables CPU Level-1 I/D-Cache by default
 
 - CMSIS<br>
 	Cortex® Microcontroller Software Interface Standard (CMSIS) V6.1.0 definitions by Arm® Corp.<p>
-	M55M1 CMSIS-Drivers do not provide thread safety and Cache coherence. The source and RTE_Device header files are in the "Driver\Source" sub-folder. Please add source files and copy RTE_Device header files into your project. Projects can define PRJ_RTE_DEVICE_HEADER macro to include the private RTE_Device.h.
+	M55M1 CMSIS-Drivers do not guarantee thread safety and Cache coherence. The source and RTE_Device header files are in the "Driver\Source" sub-folder. Please add source files and copy RTE_Device header files into your project. Projects can define PRJ_RTE_DEVICE_HEADER macro to include the private RTE_Device.h.
 
 - Commu<br>
 	Helper functions of communication protocols, e.g., XMODEM.
@@ -89,7 +89,7 @@ Please note that M55M1 Series CMSIS BSP enables CPU Level-1 I/D-Cache by default
 
 - SecureApplication<br>
 	Sample code for secure application.<p>
-	VSCode projects require Python 3.12 at least for post-build.
+	VS Code projects require Python 3.12 at least for post-build.
 
 - Semihost<br>
 	Show how to print and get character through IDE console window.

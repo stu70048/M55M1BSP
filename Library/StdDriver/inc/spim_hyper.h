@@ -639,24 +639,24 @@ __STATIC_INLINE void SPIM_HYPER_SET_OPMODE(SPIM_T *spim, uint32_t x);
   */
 __STATIC_INLINE int32_t SPIM_HYPER_WAIT_DMMDONE(SPIM_T *spim)
 {
-    volatile int32_t u32TimeOutCount = SPIM_HYPER_TIMEOUT;
+    volatile int32_t i32TimeOutCount = (int32_t)SPIM_HYPER_TIMEOUT;
 
     SPIM_HYPER_ENABLE_DMMDONE(spim);       /* HyperBus DMM Mode Done.  */
 
     while (SPIM_HYPER_GET_DMMDONE(spim))
     {
-        if (--u32TimeOutCount <= 0)
+        if (--i32TimeOutCount <= 0)
         {
             break;
         }
     }
 
-    u32TimeOutCount = SPIM_HYPER_TIMEOUT;
+    i32TimeOutCount = (int32_t)SPIM_HYPER_TIMEOUT;
 
     /* Wait for DMM mode to be idle */
     while (SPIM_HYPER_GET_DMM_IDLE(spim) == SPIM_HYPER_OP_DISABLE)
     {
-        if (--u32TimeOutCount <= 0)
+        if (--i32TimeOutCount <= 0)
         {
             break;
         }
@@ -730,8 +730,8 @@ int32_t SPIM_HYPER_WriteHyperRAMReg(SPIM_T *spim, uint32_t u32Addr, uint32_t u32
 /* Hyper Device API */
 void SPIM_HYPER_Init(SPIM_T *spim, uint32_t u32HyperMode, uint32_t u32Div);
 int32_t SPIM_HYPER_Reset(SPIM_T *spim);
-int16_t SPIM_HYPER_Read1Word(SPIM_T *spim, uint32_t u32Addr);
-int32_t SPIM_HYPER_Read2Word(SPIM_T *spim, uint32_t u32Addr);
+uint16_t SPIM_HYPER_Read1Word(SPIM_T *spim, uint32_t u32Addr);
+uint32_t SPIM_HYPER_Read2Word(SPIM_T *spim, uint32_t u32Addr);
 int32_t SPIM_HYPER_Write1Byte(SPIM_T *spim, uint32_t u32Addr, uint8_t u8Data);
 int32_t SPIM_HYPER_Write2Byte(SPIM_T *spim, uint32_t u32Addr, uint16_t u16Data);
 int32_t SPIM_HYPER_Write3Byte(SPIM_T *spim, uint32_t u32Addr, uint32_t u32Data);
